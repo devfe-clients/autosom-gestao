@@ -1,23 +1,35 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { PageHeader, Stat } from "@/components/app/kit";
+import { useColecao } from "@/lib/db";
+import type { OrdemServico, Produto } from "@/lib/schemas";
 
-// The home route ships no og:image, so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
 export const Route = createFileRoute("/")({
-  component: Index,
+  head: () => ({
+    meta: [
+      { title: "Painel — Adriano Auto Som" },
+      { name: "description", content: "Visão geral da operação da Adriano Auto Som." },
+      { property: "og:title", content: "Painel — Adriano Auto Som" },
+      { property: "og:description", content: "Visão geral da operação da Adriano Auto Som." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
+  component: Painel,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
-function Index() {
+function Painel() {
+  const { dados: produtos } = useColecao<Produto>("produtos");
+  const { dados: ordens } = useColecao<OrdemServico>("ordens");
+  const baixo = produtos.filter((p) => p.quantidade <= p.estoqueMinimo).length;
+  const abertas = ordens.filter((o) => o.tipo === "os" && !["Entregue", "Cancelada"].includes(o.status)).length;
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
+    <div>
+      <PageHeader titulo="Painel" descricao="Visão geral da operação" />
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Stat rotulo="Produtos" valor={produtos.length} />
+        <Stat rotulo="Estoque baixo" valor={baixo} tom={baixo ? "alerta" : "ok"} />
+        <Stat rotulo="OS abertas" valor={abertas} />
+      </div>
     </div>
   );
 }
