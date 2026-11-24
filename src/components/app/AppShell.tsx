@@ -44,7 +44,7 @@ function permDaRota(path: string): Permissao | null {
   return item?.perm ?? null;
 }
 
-function Nav({ onNav }: { onNav?: () => void }) {
+function Nav({ onNav }: { onNav?: (() => void) | undefined }) {
   const { pode } = useAuth();
   const path = useRouterState({ select: (s) => s.location.pathname });
   return (
