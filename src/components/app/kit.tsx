@@ -79,3 +79,19 @@ export function StatusBadge({ status }: { status: string }) {
 export function erroMsg(e: unknown) {
   return e instanceof Error ? e.message : "Não foi possível concluir a operação.";
 }
+
+export const SEL = "flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm";
+
+export function Tabela({ cab, children }: { cab: string[]; children: ReactNode }) {
+  return (
+    <div className="overflow-x-auto rounded-lg border">
+      <table className="w-full text-sm">
+        <thead className="bg-muted/50 text-left text-xs uppercase tracking-wider text-muted-foreground">
+          <tr>{cab.map((c) => <th key={c} className="px-3 py-2 font-semibold">{c}</th>)}</tr>
+        </thead>
+        <tbody className="divide-y">{children}</tbody>
+      </table>
+    </div>
+  );
+}
+export const TD = "px-3 py-2 align-middle";
