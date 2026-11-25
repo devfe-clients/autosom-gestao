@@ -10,7 +10,13 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as BipagemRouteImport } from './routes/bipagem'
 import { Route as ClientesRouteImport } from './routes/clientes'
+import { Route as ComprasRouteImport } from './routes/compras'
+import { Route as EstoqueRouteImport } from './routes/estoque'
+import { Route as EtiquetasRouteImport } from './routes/etiquetas'
+import { Route as FinanceiroRouteImport } from './routes/financeiro'
+import { Route as PdvRouteImport } from './routes/pdv'
 import { Route as VeiculosRouteImport } from './routes/veiculos'
 
 const IndexRoute = IndexRouteImport.update({
@@ -18,9 +24,39 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BipagemRoute = BipagemRouteImport.update({
+  id: '/bipagem',
+  path: '/bipagem',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ClientesRoute = ClientesRouteImport.update({
   id: '/clientes',
   path: '/clientes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ComprasRoute = ComprasRouteImport.update({
+  id: '/compras',
+  path: '/compras',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EstoqueRoute = EstoqueRouteImport.update({
+  id: '/estoque',
+  path: '/estoque',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EtiquetasRoute = EtiquetasRouteImport.update({
+  id: '/etiquetas',
+  path: '/etiquetas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FinanceiroRoute = FinanceiroRouteImport.update({
+  id: '/financeiro',
+  path: '/financeiro',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PdvRoute = PdvRouteImport.update({
+  id: '/pdv',
+  path: '/pdv',
   getParentRoute: () => rootRouteImport,
 } as any)
 const VeiculosRoute = VeiculosRouteImport.update({
@@ -31,31 +67,83 @@ const VeiculosRoute = VeiculosRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/bipagem': typeof BipagemRoute
   '/clientes': typeof ClientesRoute
+  '/compras': typeof ComprasRoute
+  '/estoque': typeof EstoqueRoute
+  '/etiquetas': typeof EtiquetasRoute
+  '/financeiro': typeof FinanceiroRoute
+  '/pdv': typeof PdvRoute
   '/veiculos': typeof VeiculosRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/bipagem': typeof BipagemRoute
   '/clientes': typeof ClientesRoute
+  '/compras': typeof ComprasRoute
+  '/estoque': typeof EstoqueRoute
+  '/etiquetas': typeof EtiquetasRoute
+  '/financeiro': typeof FinanceiroRoute
+  '/pdv': typeof PdvRoute
   '/veiculos': typeof VeiculosRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/bipagem': typeof BipagemRoute
   '/clientes': typeof ClientesRoute
+  '/compras': typeof ComprasRoute
+  '/estoque': typeof EstoqueRoute
+  '/etiquetas': typeof EtiquetasRoute
+  '/financeiro': typeof FinanceiroRoute
+  '/pdv': typeof PdvRoute
   '/veiculos': typeof VeiculosRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/clientes' | '/veiculos'
+  fullPaths:
+    | '/'
+    | '/bipagem'
+    | '/clientes'
+    | '/compras'
+    | '/estoque'
+    | '/etiquetas'
+    | '/financeiro'
+    | '/pdv'
+    | '/veiculos'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/clientes' | '/veiculos'
-  id: '__root__' | '/' | '/clientes' | '/veiculos'
+  to:
+    | '/'
+    | '/bipagem'
+    | '/clientes'
+    | '/compras'
+    | '/estoque'
+    | '/etiquetas'
+    | '/financeiro'
+    | '/pdv'
+    | '/veiculos'
+  id:
+    | '__root__'
+    | '/'
+    | '/bipagem'
+    | '/clientes'
+    | '/compras'
+    | '/estoque'
+    | '/etiquetas'
+    | '/financeiro'
+    | '/pdv'
+    | '/veiculos'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BipagemRoute: typeof BipagemRoute
   ClientesRoute: typeof ClientesRoute
+  ComprasRoute: typeof ComprasRoute
+  EstoqueRoute: typeof EstoqueRoute
+  EtiquetasRoute: typeof EtiquetasRoute
+  FinanceiroRoute: typeof FinanceiroRoute
+  PdvRoute: typeof PdvRoute
   VeiculosRoute: typeof VeiculosRoute
 }
 
@@ -68,11 +156,53 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/bipagem': {
+      id: '/bipagem'
+      path: '/bipagem'
+      fullPath: '/bipagem'
+      preLoaderRoute: typeof BipagemRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/clientes': {
       id: '/clientes'
       path: '/clientes'
       fullPath: '/clientes'
       preLoaderRoute: typeof ClientesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/compras': {
+      id: '/compras'
+      path: '/compras'
+      fullPath: '/compras'
+      preLoaderRoute: typeof ComprasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/estoque': {
+      id: '/estoque'
+      path: '/estoque'
+      fullPath: '/estoque'
+      preLoaderRoute: typeof EstoqueRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/etiquetas': {
+      id: '/etiquetas'
+      path: '/etiquetas'
+      fullPath: '/etiquetas'
+      preLoaderRoute: typeof EtiquetasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/financeiro': {
+      id: '/financeiro'
+      path: '/financeiro'
+      fullPath: '/financeiro'
+      preLoaderRoute: typeof FinanceiroRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pdv': {
+      id: '/pdv'
+      path: '/pdv'
+      fullPath: '/pdv'
+      preLoaderRoute: typeof PdvRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/veiculos': {
@@ -87,7 +217,13 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BipagemRoute: BipagemRoute,
   ClientesRoute: ClientesRoute,
+  ComprasRoute: ComprasRoute,
+  EstoqueRoute: EstoqueRoute,
+  EtiquetasRoute: EtiquetasRoute,
+  FinanceiroRoute: FinanceiroRoute,
+  PdvRoute: PdvRoute,
   VeiculosRoute: VeiculosRoute,
 }
 export const routeTree = rootRouteImport
