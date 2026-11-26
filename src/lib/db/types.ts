@@ -11,6 +11,7 @@ export type ColecaoNome =
   | "compras"
   | "fornecedores"
   | "lancamentos"
+  | "lancamentosPessoais"
   | "usuarios"
   | "auditoria";
 

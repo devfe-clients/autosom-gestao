@@ -29,7 +29,7 @@ service cloud.firestore {
       return request.resource.data.get('atualizadoPor', null) == request.auth.uid;
     }
     function colecoesEspeciais() {
-      return ['produtos', 'movimentos', 'lancamentos', 'auditoria', 'usuarios', 'sistema'];
+      return ['produtos', 'movimentos', 'lancamentos', 'lancamentosPessoais', 'auditoria', 'usuarios', 'sistema'];
     }
 
     // Vale só durante o batch do primeiro acesso (usuário ainda não existe antes do commit)
@@ -116,8 +116,7 @@ service cloud.firestore {
     match /sistema/{id} {
       allow get: if logado();
       allow create: if logado() && id == 'instalacao'
-        && request.resource.data.get('proprietariaId', null) == request.auth.uid
-        && existsAfter(/databases/$(database)/documents/usuarios/$(request.auth.uid));
+        && request.resource.data.get('proprietariaId', null) == request.auth.uid;
       allow update, delete: if false;
     }
 
@@ -137,6 +136,11 @@ service cloud.firestore {
       allow read: if usuarioAtivo();
       allow create, update: if usuarioAtivo() && lancamentoValido() && carimboOk();
       allow delete: if ehDona();
+    }
+
+    //contas pessoais da proprietária: nenhum funcionário tem leitura ou gravação
+    match /lancamentosPessoais/{id} {
+      allow read, create, update, delete: if ehDona() && lancamentoValido() && carimboOk();
     }
 
     // Demais coleções (clientes, veículos, OS, vendas, compras...): só usuário ativo

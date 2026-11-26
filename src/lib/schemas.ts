@@ -306,6 +306,7 @@ export const usuarioSchema = z.object({
   perfil: z.enum(perfis),
   cargo: z.string().trim().max(60).default(""),
   ativo: z.boolean().default(true),
+  podeVerCusto: z.boolean().default(false),
   senhaLocal: z.string().optional(),
 });
 export type Usuario = z.infer<typeof usuarioSchema>;

@@ -16,7 +16,7 @@ import { semearLocal } from "./seed";
 import { pode as podePerfil, type Permissao } from "./permissoes";
 import type { Perfil, Usuario } from "./schemas";
 
-export type Sessao = { uid: string; nome: string; email: string; perfil: Perfil };
+export type Sessao = { uid: string; nome: string; email: string; perfil: Perfil; podeVerCusto?: boolean };
 
 type Ctx = {
   usuario: Sessao | null;
@@ -25,7 +25,7 @@ type Ctx = {
   pode: (p: Permissao) => boolean;
   entrar: (email: string, senha: string) => Promise<void>;
   sair: () => Promise<void>;
-  criarUsuario: (dados: { nome: string; email: string; senha: string; perfil: Perfil; cargo: string }) => Promise<void>;
+  criarUsuario: (dados: { nome: string; email: string; senha: string; perfil: Perfil; cargo: string; podeVerCusto?: boolean }) => Promise<void>;
   primeiroAcesso: (dados: { nome: string; email: string; senha: string }) => Promise<void>;
 };
 
@@ -42,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       semearLocal();
       const uid = window.localStorage.getItem(CHAVE_LOCAL);
       const u = lerLocal<Usuario>("usuarios").find((x) => x.id === uid && x.ativo);
-      setUsuario(u ? { uid: u.id, nome: u.nome, email: u.email, perfil: u.perfil } : null);
+      setUsuario(u ? { uid: u.id, nome: u.nome, email: u.email, perfil: u.perfil, podeVerCusto: u.podeVerCusto } : null);
       setCarregando(false);
       return;
     }
@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await signOut(auth!);
         setUsuario(null);
       } else {
-        setUsuario({ uid: user.uid, nome: dados.nome, email: dados.email, perfil: dados.perfil });
+        setUsuario({ uid: user.uid, nome: dados.nome, email: dados.email, perfil: dados.perfil, podeVerCusto: dados.podeVerCusto });
       }
       setCarregando(false);
     });
@@ -72,7 +72,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       usuario,
       autor,
       carregando,
-      pode: (p) => podePerfil(usuario?.perfil, p),
+      pode: (p) => {
+        if (p === "ver-custo") {
+          return usuario?.perfil === "proprietaria" || Boolean(usuario?.podeVerCusto);
+        }
+        return podePerfil(usuario?.perfil, p);
+      },
       async entrar(email, senha) {
         const e = email.trim().toLowerCase();
         if (!auth) {
@@ -98,12 +103,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         await signOut(auth);
       },
-      async criarUsuario({ nome, email, senha, perfil, cargo }) {
+      async criarUsuario({ nome, email, senha, perfil, cargo, podeVerCusto = false }) {
         if (!usuario || usuario.perfil !== "proprietaria") throw new Error("Apenas a proprietária cadastra usuários.");
         if (senha.length < 6) throw new Error("A senha precisa ter ao menos 6 caracteres.");
         let id = novoId();
         if (auth) {
-          // Conta criada num app secundário para não derrubar a sessão da proprietária.
+          //conta criada num app secundário para não derrubar a sessão da proprietária.
           const a2 = getAuth(appSecundario());
           const cred = await createUserWithEmailAndPassword(a2, email.trim().toLowerCase(), senha);
           await updateProfile(cred.user, { displayName: nome });
@@ -117,7 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           escritas: [
             {
               colecao: "usuarios",
-              registro: { id, nome, email: email.trim().toLowerCase(), perfil, cargo, ativo: true, ...(auth ? {} : { senhaLocal: senha }) },
+              registro: { id, nome, email: email.trim().toLowerCase(), perfil, cargo, ativo: true, podeVerCusto, ...(auth ? {} : { senhaLocal: senha }) },
             },
           ],
         });
@@ -146,9 +151,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           await b.commit();
         } catch (e) {
+          console.error("Erro detalhado no primeiro acesso:", e);
           await cred.user.delete().catch(() => {});
           instalando = false;
-          throw new Error("O primeiro acesso já foi configurado. Peça à proprietária para criar seu usuário.", { cause: e });
+          const msg = e instanceof Error ? e.message : String(e);
+          throw new Error(msg.includes("permission-denied")
+            ? "Permissão negada pelo Firestore. Verifique se publicou as novas regras."
+            : `Falha na instalação: ${msg}`);
         }
         instalando = false;
         setUsuario({ uid, nome, email, perfil: "proprietaria" });

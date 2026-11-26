@@ -20,7 +20,7 @@ export const Route = createFileRoute("/usuarios")({
 function Usuarios() {
   const { autor, usuario, criarUsuario } = useAuth();
   const { dados } = useColecao<Usuario>("usuarios");
-  const [form, setForm] = useState<{ nome: string; email: string; senha: string; perfil: Perfil; cargo: string } | null>(null);
+  const [form, setForm] = useState<{ nome: string; email: string; senha: string; perfil: Perfil; cargo: string; podeVerCusto: boolean } | null>(null);
   async function salvar() {
     if (!form) return;
     try { await criarUsuario(form); toast.success("Usuário criado"); setForm(null); } catch (e) { toast.error(erroMsg(e)); }
@@ -30,13 +30,31 @@ function Usuarios() {
     try { await gravar({ autor, escritas: [{ colecao: "usuarios", acao: "status", detalhe: `${u.nome} ${u.ativo ? "desativado" : "reativado"}`, registro: { ...u, ativo: !u.ativo } }] }); }
     catch (e) { toast.error(erroMsg(e)); }
   }
+  async function alternarCusto(u: Usuario) {
+    try {
+      await gravar({
+        autor,
+        escritas: [{ colecao: "usuarios", acao: "alterar", detalhe: `${u.nome}: permissão de ver custo ${!u.podeVerCusto ? "liberada" : "bloqueada"}`, registro: { ...u, podeVerCusto: !u.podeVerCusto } }],
+      });
+      toast.success("Permissão atualizada");
+    } catch (e) { toast.error(erroMsg(e)); }
+  }
   return (
     <div className="space-y-4">
-      <PageHeader titulo="Usuários" acoes={<Button onClick={() => setForm({ nome: "", email: "", senha: "", perfil: "funcionario", cargo: "" })}><Plus className="mr-1 h-4 w-4" />Novo usuário</Button>} />
-      <Tabela cab={["Nome", "E-mail", "Perfil", "Cargo", "Situação", ""]}>
+      <PageHeader titulo="Usuários" acoes={<Button onClick={() => setForm({ nome: "", email: "", senha: "", perfil: "funcionario", cargo: "", podeVerCusto: false })}><Plus className="mr-1 h-4 w-4" />Novo usuário</Button>} />
+      <Tabela cab={["Nome", "E-mail", "Perfil", "Cargo", "Ver Custo", "Situação", ""]}>
         {dados.map((u) => (
           <tr key={u.id}>
             <td className={TD}>{u.nome}</td><td className={TD}>{u.email}</td><td className={TD}>{NOME_PERFIL[u.perfil]}</td><td className={TD}>{u.cargo || "—"}</td>
+            <td className={TD}>
+              {u.perfil === "proprietaria" ? (
+                <span className="text-xs font-semibold text-muted-foreground">Sempre liberado</span>
+              ) : (
+                <Button size="sm" variant={u.podeVerCusto ? "default" : "outline"} onClick={() => void alternarCusto(u)}>
+                  {u.podeVerCusto ? "Liberado" : "Oculto"}
+                </Button>
+              )}
+            </td>
             <td className={TD}>{u.ativo ? "Ativo" : "Inativo"}</td>
             <td className={TD}><Button size="sm" variant="secondary" onClick={() => void alternar(u)}>{u.ativo ? "Desativar" : "Reativar"}</Button></td>
           </tr>
@@ -52,6 +70,17 @@ function Usuarios() {
               <Campo rotulo="Senha inicial"><Input type="password" value={form.senha} onChange={(e) => setForm({ ...form, senha: e.target.value })} /></Campo>
               <Campo rotulo="Perfil"><select className={SEL} value={form.perfil} onChange={(e) => setForm({ ...form, perfil: e.target.value as Perfil })}><option value="funcionario">Funcionário</option><option value="proprietaria">Proprietária</option></select></Campo>
               <Campo rotulo="Cargo"><Input value={form.cargo} onChange={(e) => setForm({ ...form, cargo: e.target.value })} /></Campo>
+              {form.perfil === "funcionario" && (
+                <label className="flex items-center gap-2 pt-1 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.podeVerCusto}
+                    onChange={(e) => setForm({ ...form, podeVerCusto: e.target.checked })}
+                    className="rounded border-input text-primary"
+                  />
+                  <span>Permitir ver custos e lucros no estoque</span>
+                </label>
+              )}
             </div>
           )}
           <DialogFooter><Button onClick={() => void salvar()}>Criar</Button></DialogFooter>

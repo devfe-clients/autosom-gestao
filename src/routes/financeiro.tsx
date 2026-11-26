@@ -23,11 +23,11 @@ const contaDe = (l: Lancamento) => l.origemLancamento ?? "empresa";
 
 function Financeiro() {
   const { autor, usuario } = useAuth();
-  const { dados: todos } = useColecao<Lancamento>("lancamentos");
   const vePessoal = usuario?.perfil === "proprietaria";
   const [conta, setConta] = useState<"empresa" | "pessoal">("empresa");
   const contaAtiva = vePessoal ? conta : "empresa";
-  const dados = todos.filter((l) => contaDe(l) === contaAtiva);
+  const colecaoAtiva = contaAtiva === "pessoal" ? "lancamentosPessoais" : "lancamentos";
+  const { dados } = useColecao<Lancamento>(colecaoAtiva);
   const [filtro, setFiltro] = useState<"todos" | "receber" | "pagar">("todos");
   const [aba, setAba] = useState<"abertos" | "pagos">("abertos");
   const [form, setForm] = useState<typeof VAZIO | null>(null);
@@ -36,11 +36,12 @@ function Financeiro() {
   const somar = (f: (l: Lancamento) => boolean) => dados.filter(f).reduce((s, l) => s + l.valor, 0);
   async function salvar() {
     if (!form) return;
-    try { await gravar({ autor, escritas: [{ colecao: "lancamentos", registro: { ...form, origemLancamento: vePessoal ? form.origemLancamento : "empresa", id: novoId(), origem: "manual" } }] }); setForm(null); toast.success("Lançamento criado"); }
+    const col = vePessoal && form.origemLancamento === "pessoal" ? "lancamentosPessoais" : "lancamentos";
+    try { await gravar({ autor, escritas: [{ colecao: col, registro: { ...form, id: novoId(), origem: "manual" } }] }); setForm(null); toast.success("Lançamento criado"); }
     catch (e) { toast.error(erroMsg(e)); }
   }
   async function baixar(l: Lancamento) {
-    try { await gravar({ autor, escritas: [{ colecao: "lancamentos", acao: "pagamento", detalhe: `Baixa: ${l.descricao} · ${brl(l.valor)}`, registro: { ...l, pagoEm: new Date().toISOString(), baixadoPor: autor.nome } }] }); toast.success("Pagamento registrado"); }
+    try { await gravar({ autor, escritas: [{ colecao: colecaoAtiva, acao: "pagamento", detalhe: `Baixa: ${l.descricao} · ${brl(l.valor)}`, registro: { ...l, pagoEm: new Date().toISOString(), baixadoPor: autor.nome } }] }); toast.success("Pagamento registrado"); }
     catch (e) { toast.error(erroMsg(e)); }
   }
   const set = (k: keyof typeof VAZIO) => (e: { target: { value: string } }) => setForm((f) => f && { ...f, [k]: e.target.value });
