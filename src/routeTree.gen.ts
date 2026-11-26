@@ -10,18 +10,29 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuditoriaRouteImport } from './routes/auditoria'
 import { Route as BipagemRouteImport } from './routes/bipagem'
 import { Route as ClientesRouteImport } from './routes/clientes'
 import { Route as ComprasRouteImport } from './routes/compras'
 import { Route as EstoqueRouteImport } from './routes/estoque'
 import { Route as EtiquetasRouteImport } from './routes/etiquetas'
 import { Route as FinanceiroRouteImport } from './routes/financeiro'
+import { Route as OrcamentosRouteImport } from './routes/orcamentos'
 import { Route as PdvRouteImport } from './routes/pdv'
+import { Route as RelatoriosRouteImport } from './routes/relatorios'
+import { Route as UsuariosRouteImport } from './routes/usuarios'
 import { Route as VeiculosRouteImport } from './routes/veiculos'
+import { Route as OsIndexRouteImport } from './routes/os.index'
+import { Route as OsIdRouteImport } from './routes/os.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuditoriaRoute = AuditoriaRouteImport.update({
+  id: '/auditoria',
+  path: '/auditoria',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BipagemRoute = BipagemRouteImport.update({
@@ -54,9 +65,24 @@ const FinanceiroRoute = FinanceiroRouteImport.update({
   path: '/financeiro',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OrcamentosRoute = OrcamentosRouteImport.update({
+  id: '/orcamentos',
+  path: '/orcamentos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PdvRoute = PdvRouteImport.update({
   id: '/pdv',
   path: '/pdv',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RelatoriosRoute = RelatoriosRouteImport.update({
+  id: '/relatorios',
+  path: '/relatorios',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UsuariosRoute = UsuariosRouteImport.update({
+  id: '/usuarios',
+  path: '/usuarios',
   getParentRoute: () => rootRouteImport,
 } as any)
 const VeiculosRoute = VeiculosRouteImport.update({
@@ -64,87 +90,139 @@ const VeiculosRoute = VeiculosRouteImport.update({
   path: '/veiculos',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OsIndexRoute = OsIndexRouteImport.update({
+  id: '/os/',
+  path: '/os/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OsIdRoute = OsIdRouteImport.update({
+  id: '/os/$id',
+  path: '/os/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auditoria': typeof AuditoriaRoute
   '/bipagem': typeof BipagemRoute
   '/clientes': typeof ClientesRoute
   '/compras': typeof ComprasRoute
   '/estoque': typeof EstoqueRoute
   '/etiquetas': typeof EtiquetasRoute
   '/financeiro': typeof FinanceiroRoute
+  '/orcamentos': typeof OrcamentosRoute
   '/pdv': typeof PdvRoute
+  '/relatorios': typeof RelatoriosRoute
+  '/usuarios': typeof UsuariosRoute
   '/veiculos': typeof VeiculosRoute
+  '/os/$id': typeof OsIdRoute
+  '/os/': typeof OsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auditoria': typeof AuditoriaRoute
   '/bipagem': typeof BipagemRoute
   '/clientes': typeof ClientesRoute
   '/compras': typeof ComprasRoute
   '/estoque': typeof EstoqueRoute
   '/etiquetas': typeof EtiquetasRoute
   '/financeiro': typeof FinanceiroRoute
+  '/orcamentos': typeof OrcamentosRoute
   '/pdv': typeof PdvRoute
+  '/relatorios': typeof RelatoriosRoute
+  '/usuarios': typeof UsuariosRoute
   '/veiculos': typeof VeiculosRoute
+  '/os/$id': typeof OsIdRoute
+  '/os': typeof OsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/auditoria': typeof AuditoriaRoute
   '/bipagem': typeof BipagemRoute
   '/clientes': typeof ClientesRoute
   '/compras': typeof ComprasRoute
   '/estoque': typeof EstoqueRoute
   '/etiquetas': typeof EtiquetasRoute
   '/financeiro': typeof FinanceiroRoute
+  '/orcamentos': typeof OrcamentosRoute
   '/pdv': typeof PdvRoute
+  '/relatorios': typeof RelatoriosRoute
+  '/usuarios': typeof UsuariosRoute
   '/veiculos': typeof VeiculosRoute
+  '/os/$id': typeof OsIdRoute
+  '/os/': typeof OsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/auditoria'
     | '/bipagem'
     | '/clientes'
     | '/compras'
     | '/estoque'
     | '/etiquetas'
     | '/financeiro'
+    | '/orcamentos'
     | '/pdv'
+    | '/relatorios'
+    | '/usuarios'
     | '/veiculos'
+    | '/os/$id'
+    | '/os/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/auditoria'
     | '/bipagem'
     | '/clientes'
     | '/compras'
     | '/estoque'
     | '/etiquetas'
     | '/financeiro'
+    | '/orcamentos'
     | '/pdv'
+    | '/relatorios'
+    | '/usuarios'
     | '/veiculos'
+    | '/os/$id'
+    | '/os'
   id:
     | '__root__'
     | '/'
+    | '/auditoria'
     | '/bipagem'
     | '/clientes'
     | '/compras'
     | '/estoque'
     | '/etiquetas'
     | '/financeiro'
+    | '/orcamentos'
     | '/pdv'
+    | '/relatorios'
+    | '/usuarios'
     | '/veiculos'
+    | '/os/$id'
+    | '/os/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuditoriaRoute: typeof AuditoriaRoute
   BipagemRoute: typeof BipagemRoute
   ClientesRoute: typeof ClientesRoute
   ComprasRoute: typeof ComprasRoute
   EstoqueRoute: typeof EstoqueRoute
   EtiquetasRoute: typeof EtiquetasRoute
   FinanceiroRoute: typeof FinanceiroRoute
+  OrcamentosRoute: typeof OrcamentosRoute
   PdvRoute: typeof PdvRoute
+  RelatoriosRoute: typeof RelatoriosRoute
+  UsuariosRoute: typeof UsuariosRoute
   VeiculosRoute: typeof VeiculosRoute
+  OsIdRoute: typeof OsIdRoute
+  OsIndexRoute: typeof OsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -154,6 +232,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auditoria': {
+      id: '/auditoria'
+      path: '/auditoria'
+      fullPath: '/auditoria'
+      preLoaderRoute: typeof AuditoriaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/bipagem': {
@@ -198,11 +283,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FinanceiroRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/orcamentos': {
+      id: '/orcamentos'
+      path: '/orcamentos'
+      fullPath: '/orcamentos'
+      preLoaderRoute: typeof OrcamentosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/pdv': {
       id: '/pdv'
       path: '/pdv'
       fullPath: '/pdv'
       preLoaderRoute: typeof PdvRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/relatorios': {
+      id: '/relatorios'
+      path: '/relatorios'
+      fullPath: '/relatorios'
+      preLoaderRoute: typeof RelatoriosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/usuarios': {
+      id: '/usuarios'
+      path: '/usuarios'
+      fullPath: '/usuarios'
+      preLoaderRoute: typeof UsuariosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/veiculos': {
@@ -212,19 +318,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VeiculosRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/os/': {
+      id: '/os/'
+      path: '/os'
+      fullPath: '/os/'
+      preLoaderRoute: typeof OsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/os/$id': {
+      id: '/os/$id'
+      path: '/os/$id'
+      fullPath: '/os/$id'
+      preLoaderRoute: typeof OsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuditoriaRoute: AuditoriaRoute,
   BipagemRoute: BipagemRoute,
   ClientesRoute: ClientesRoute,
   ComprasRoute: ComprasRoute,
   EstoqueRoute: EstoqueRoute,
   EtiquetasRoute: EtiquetasRoute,
   FinanceiroRoute: FinanceiroRoute,
+  OrcamentosRoute: OrcamentosRoute,
   PdvRoute: PdvRoute,
+  RelatoriosRoute: RelatoriosRoute,
+  UsuariosRoute: UsuariosRoute,
   VeiculosRoute: VeiculosRoute,
+  OsIdRoute: OsIdRoute,
+  OsIndexRoute: OsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

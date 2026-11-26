@@ -36,7 +36,7 @@ function Veiculos() {
     } catch (e) { toast.error(erroMsg(e)); }
   }
   async function excluir(v: Veiculo) {
-    if (ordens.some((o) => o.veiculoId === v.id)) return toast.error("Veículo possui OS vinculadas.");
+    if (ordens.some((o) => o.veiculoId === v.id)) return void toast.error("Veículo possui OS vinculadas.");
     if (!confirm(`Excluir ${v.placa}?`)) return;
     try { await gravar({ autor, remocoes: [{ colecao: "veiculos", id: v.id, detalhe: `Veículo ${v.placa} excluído` }] }); }
     catch (e) { toast.error(erroMsg(e)); }

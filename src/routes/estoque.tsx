@@ -34,7 +34,7 @@ function Estoque() {
   async function salvar() {
     if (!form) return;
     const atual = dados.find((p) => p.id === form.id);
-    if (form.codigoBarras && dados.some((p) => p.codigoBarras === form.codigoBarras && p.id !== form.id)) return toast.error("Código de barras já usado em outro produto.");
+    if (form.codigoBarras && dados.some((p) => p.codigoBarras === form.codigoBarras && p.id !== form.id)) return void toast.error("Código de barras já usado em outro produto.");
     try {
       await gravar({ autor, escritas: [{ colecao: "produtos", registro: { ...atual, ...form, id: form.id ?? novoId(), quantidade: atual ? atual.quantidade : form.quantidade, ativo: true } }] });
       toast.success("Produto salvo");
@@ -65,7 +65,7 @@ function Estoque() {
               <td className={TD}>{brl(p.precoVenda)}</td>
               <td className={`${TD} font-bold ${p.quantidade <= p.estoqueMinimo ? "text-warning" : ""}`}>{p.quantidade} {p.unidade}</td>
               <td className={`${TD} whitespace-nowrap text-right`}>
-                <Button size="icon" variant="ghost" onClick={() => setForm({ ...VAZIO, ...p, sku: p.sku ?? "", marca: p.marca ?? "", localizacao: p.localizacao ?? "", custo: String(p.custo), precoVenda: String(p.precoVenda), quantidade: String(p.quantidade), estoqueMinimo: String(p.estoqueMinimo) })}><Pencil className="h-4 w-4" /></Button>
+                <Button size="icon" variant="ghost" onClick={() => setForm({ ...VAZIO, ...p, sku: p.sku ?? "", marca: p.marca ?? "", localizacao: p.localizacao ?? "", custo: String(p.custo), precoVenda: String(p.precoVenda), quantidade: String(p.quantidade), estoqueMinimo: String(p.estoqueMinimo) } as Form)}><Pencil className="h-4 w-4" /></Button>
                 {pode("ajustar-estoque") && <Button size="icon" variant="ghost" title="Ajustar saldo" onClick={() => setAjuste({ p, delta: "", obs: "" })}><SlidersHorizontal className="h-4 w-4" /></Button>}
               </td>
             </tr>

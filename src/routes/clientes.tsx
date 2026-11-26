@@ -37,7 +37,7 @@ function Clientes() {
     } catch (e) { toast.error(erroMsg(e)); }
   }
   async function excluir(c: Cliente) {
-    if (veiculos.some((v) => v.clienteId === c.id)) return toast.error("Cliente possui veículos cadastrados.");
+    if (veiculos.some((v) => v.clienteId === c.id)) return void toast.error("Cliente possui veículos cadastrados.");
     if (!confirm(`Excluir ${c.nome}?`)) return;
     try { await gravar({ autor, remocoes: [{ colecao: "clientes", id: c.id, detalhe: `Cliente ${c.nome} excluído` }] }); toast.success("Excluído"); }
     catch (e) { toast.error(erroMsg(e)); }
