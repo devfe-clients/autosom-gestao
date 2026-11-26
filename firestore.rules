@@ -24,6 +24,10 @@ service cloud.firestore {
     function numOk(v, max) {
       return v is number && v >= 0 && v <= max;
     }
+    // Autoria não pode ser forjada: o carimbo precisa ser do usuário logado
+    function carimboOk() {
+      return request.resource.data.get('atualizadoPor', null) == request.auth.uid;
+    }
     function colecoesEspeciais() {
       return ['produtos', 'movimentos', 'lancamentos', 'auditoria', 'usuarios', 'sistema'];
     }
@@ -62,7 +66,8 @@ service cloud.firestore {
         && d.get('delta', null) is int
         && d.get('saldoAnterior', null) is int && d.saldoAnterior >= 0
         && d.get('saldoApos', null) is int && d.saldoApos >= 0
-        && d.saldoApos == d.saldoAnterior + d.delta;
+        && d.saldoApos == d.saldoAnterior + d.delta
+        && d.get('criadoPor', null) == request.auth.uid;
     }
     function lancamentoValido() {
       let d = request.resource.data;
@@ -86,17 +91,16 @@ service cloud.firestore {
       return d.get('acao', null) in ['criar', 'alterar', 'excluir', 'entrada-estoque', 'saida-estoque',
                                       'venda', 'pagamento', 'status', 'login', 'logout']
         && textoOk(d.get('colecao', null), 1, 60)
-        && textoOk(d.get('usuarioNome', null), 1, 120);
-        // opcional, depois de confirmar que usuarioId == uid do Auth:
-        // && d.get('usuarioId', null) == request.auth.uid
+        && textoOk(d.get('usuarioNome', null), 1, 120)
+        && d.get('usuarioId', null) == request.auth.uid;
     }
 
     // ---------- Coleções ----------
     match /usuarios/{uid} {
       allow get: if logado() && (request.auth.uid == uid || ehDona());
       allow list: if ehDona();
-      allow create: if usuarioValido() && (ehDona() || primeiroAcesso(uid));
-      allow update: if ehDona() && usuarioValido()
+      allow create: if usuarioValido() && carimboOk() && (ehDona() || primeiroAcesso(uid));
+      allow update: if ehDona() && usuarioValido() && carimboOk()
         && (uid != request.auth.uid
             || (request.resource.data.perfil == 'proprietaria' && request.resource.data.get('ativo', true) == true)); // não se rebaixa/desativa
       allow delete: if ehDona() && uid != request.auth.uid;
@@ -125,19 +129,20 @@ service cloud.firestore {
 
     match /produtos/{id} {
       allow read: if usuarioAtivo();
-      allow create, update: if usuarioAtivo() && produtoValido();   // quantidade nunca negativa
+      allow create, update: if usuarioAtivo() && produtoValido() && carimboOk();   // quantidade nunca negativa
       allow delete: if ehDona();
     }
 
     match /lancamentos/{id} {
       allow read: if usuarioAtivo();
-      allow create, update: if usuarioAtivo() && lancamentoValido();
+      allow create, update: if usuarioAtivo() && lancamentoValido() && carimboOk();
       allow delete: if ehDona();
     }
 
     // Demais coleções (clientes, veículos, OS, vendas, compras...): só usuário ativo
     match /{colecao}/{id} {
-      allow read, create, update: if usuarioAtivo() && !(colecao in colecoesEspeciais());
+      allow read: if usuarioAtivo() && !(colecao in colecoesEspeciais());
+      allow create, update: if usuarioAtivo() && carimboOk() && !(colecao in colecoesEspeciais());
       allow delete: if ehDona() && !(colecao in colecoesEspeciais());
     }
   }

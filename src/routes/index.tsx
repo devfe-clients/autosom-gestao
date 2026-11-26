@@ -6,10 +6,10 @@ import type { OrdemServico, Produto } from "@/lib/schemas";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Painel — Adriano Auto Som" },
-      { name: "description", content: "Visão geral da operação da Adriano Auto Som." },
-      { property: "og:title", content: "Painel — Adriano Auto Som" },
-      { property: "og:description", content: "Visão geral da operação da Adriano Auto Som." },
+      { title: "Painel — Gestão Auto Som" },
+      { name: "description", content: "Visão geral da operação da Gestão Auto Som." },
+      { property: "og:title", content: "Painel — Gestão Auto Som" },
+      { property: "og:description", content: "Visão geral da operação da Gestão Auto Som." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
