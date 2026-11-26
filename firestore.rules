@@ -1,0 +1,144 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- Funções ----------
+    function logado() {
+      return request.auth != null;
+    }
+    function docUsuario() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid));
+    }
+    function usuarioAtivo() {
+      return logado()
+        && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
+        && docUsuario().data.get('ativo', true) == true;
+    }
+    function ehDona() {
+      return usuarioAtivo() && docUsuario().data.get('perfil', '') == 'proprietaria';
+    }
+    function textoOk(v, min, max) {
+      return v is string && v.size() >= min && v.size() <= max;
+    }
+    function numOk(v, max) {
+      return v is number && v >= 0 && v <= max;
+    }
+    function colecoesEspeciais() {
+      return ['produtos', 'movimentos', 'lancamentos', 'auditoria', 'usuarios', 'sistema'];
+    }
+
+    // Vale só durante o batch do primeiro acesso (usuário ainda não existe antes do commit)
+    function ativoApos() {
+      return logado()
+        && existsAfter(/databases/$(database)/documents/usuarios/$(request.auth.uid))
+        && getAfter(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.get('ativo', true) == true;
+    }
+    function primeiroAcesso(uid) {
+      let inst = /databases/$(database)/documents/sistema/instalacao;
+      return logado()
+        && request.auth.uid == uid
+        && !exists(inst)
+        && existsAfter(inst)
+        && getAfter(inst).data.get('proprietariaId', null) == uid
+        && request.resource.data.get('perfil', '') == 'proprietaria'
+        && request.resource.data.get('ativo', true) == true;
+    }
+
+    // ---------- Validações de negócio ----------
+    function produtoValido() {
+      let d = request.resource.data;
+      return textoOk(d.get('nome', null), 2, 120)
+        && d.get('quantidade', null) is int && d.quantidade >= 0
+        && numOk(d.get('custo', null), 1000000)
+        && numOk(d.get('precoVenda', null), 1000000);
+    }
+    function movimentoValido() {
+      let d = request.resource.data;
+      return d.get('tipo', null) in ['entrada', 'saida']
+        && d.get('origem', null) in ['bipagem', 'compra', 'os', 'pdv', 'ajuste', 'estorno']
+        && textoOk(d.get('produtoId', null), 1, 200)
+        && d.get('quantidade', null) is int && d.quantidade > 0
+        && d.get('delta', null) is int
+        && d.get('saldoAnterior', null) is int && d.saldoAnterior >= 0
+        && d.get('saldoApos', null) is int && d.saldoApos >= 0
+        && d.saldoApos == d.saldoAnterior + d.delta;
+    }
+    function lancamentoValido() {
+      let d = request.resource.data;
+      return d.get('tipo', null) in ['receber', 'pagar']
+        && textoOk(d.get('descricao', null), 2, 160)
+        && d.get('valor', null) is number && d.valor > 0
+        && textoOk(d.get('vencimento', null), 1, 40)
+        && d.get('origemLancamento', 'empresa') in ['empresa', 'pessoal']
+        && (d.get('origemLancamento', 'empresa') == 'empresa' || ehDona());
+    }
+    function usuarioValido() {
+      let d = request.resource.data;
+      return textoOk(d.get('nome', null), 2, 80)
+        && textoOk(d.get('email', null), 5, 160)
+        && d.get('perfil', null) in ['proprietaria', 'funcionario']
+        && d.get('ativo', true) is bool
+        && !d.keys().hasAny(['senhaLocal']);   // nunca guardar senha no Firestore
+    }
+    function auditoriaValida() {
+      let d = request.resource.data;
+      return d.get('acao', null) in ['criar', 'alterar', 'excluir', 'entrada-estoque', 'saida-estoque',
+                                      'venda', 'pagamento', 'status', 'login', 'logout']
+        && textoOk(d.get('colecao', null), 1, 60)
+        && textoOk(d.get('usuarioNome', null), 1, 120);
+        // opcional, depois de confirmar que usuarioId == uid do Auth:
+        // && d.get('usuarioId', null) == request.auth.uid
+    }
+
+    // ---------- Coleções ----------
+    match /usuarios/{uid} {
+      allow get: if logado() && (request.auth.uid == uid || ehDona());
+      allow list: if ehDona();
+      allow create: if usuarioValido() && (ehDona() || primeiroAcesso(uid));
+      allow update: if ehDona() && usuarioValido()
+        && (uid != request.auth.uid
+            || (request.resource.data.perfil == 'proprietaria' && request.resource.data.get('ativo', true) == true)); // não se rebaixa/desativa
+      allow delete: if ehDona() && uid != request.auth.uid;
+    }
+
+    match /auditoria/{id} {
+      allow read: if usuarioAtivo();
+      allow create: if (usuarioAtivo() || ativoApos()) && auditoriaValida();
+      allow update, delete: if false;          // append-only
+    }
+
+    // Trava de instalação: só pode ser criada uma vez, pelo próprio primeiro usuário
+    match /sistema/{id} {
+      allow get: if logado();
+      allow create: if logado() && id == 'instalacao'
+        && request.resource.data.get('proprietariaId', null) == request.auth.uid
+        && existsAfter(/databases/$(database)/documents/usuarios/$(request.auth.uid));
+      allow update, delete: if false;
+    }
+
+    match /movimentos/{id} {
+      allow read: if usuarioAtivo();
+      allow create: if usuarioAtivo() && movimentoValido();
+      allow update, delete: if false;          // histórico imutável
+    }
+
+    match /produtos/{id} {
+      allow read: if usuarioAtivo();
+      allow create, update: if usuarioAtivo() && produtoValido();   // quantidade nunca negativa
+      allow delete: if ehDona();
+    }
+
+    match /lancamentos/{id} {
+      allow read: if usuarioAtivo();
+      allow create, update: if usuarioAtivo() && lancamentoValido();
+      allow delete: if ehDona();
+    }
+
+    // Demais coleções (clientes, veículos, OS, vendas, compras...): só usuário ativo
+    match /{colecao}/{id} {
+      allow read, create, update: if usuarioAtivo() && !(colecao in colecoesEspeciais());
+      allow delete: if ehDona() && !(colecao in colecoesEspeciais());
+    }
+  }
+}

@@ -1,10 +1,5 @@
 import { z } from "zod";
 
-/**
- * Fonte única de validação. Usada nas telas E na camada de dados (src/lib/db),
- * que rejeita qualquer gravação inválida antes de chegar ao banco. No Firebase,
- * as Firestore Rules repetem as regras críticas no servidor.
- */
 const so = (v: string) => v.replace(/\D/g, "");
 const opc = (s: z.ZodString) => s.optional().or(z.literal(""));
 
@@ -297,6 +292,7 @@ export const lancamentoSchema = z
     origem: z.enum(["manual", "os", "pdv", "compra"]).default("manual"),
     referenciaId: z.string().default(""),
     baixadoPor: z.string().default(""),
+    origemLancamento: z.enum(["empresa", "pessoal"]).default("empresa"),
   });
 export type Lancamento = z.infer<typeof lancamentoSchema>;
 

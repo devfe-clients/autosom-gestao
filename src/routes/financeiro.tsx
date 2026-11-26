@@ -18,11 +18,16 @@ export const Route = createFileRoute("/financeiro")({
 });
 
 const situacao = (l: Lancamento) => (l.pagoEm ? "Pago" : l.vencimento < hojeISO() ? "Vencido" : "Em aberto");
-const VAZIO = { tipo: "pagar", descricao: "", valor: "", vencimento: hojeISO(), formaPagamento: "PIX", categoria: "Despesas gerais", observacao: "" };
+const VAZIO = { tipo: "pagar", descricao: "", valor: "", vencimento: hojeISO(), formaPagamento: "PIX", categoria: "Despesas gerais", observacao: "", origemLancamento: "empresa" };
+const contaDe = (l: Lancamento) => l.origemLancamento ?? "empresa";
 
 function Financeiro() {
-  const { autor } = useAuth();
-  const { dados } = useColecao<Lancamento>("lancamentos");
+  const { autor, usuario } = useAuth();
+  const { dados: todos } = useColecao<Lancamento>("lancamentos");
+  const vePessoal = usuario?.perfil === "proprietaria";
+  const [conta, setConta] = useState<"empresa" | "pessoal">("empresa");
+  const contaAtiva = vePessoal ? conta : "empresa";
+  const dados = todos.filter((l) => contaDe(l) === contaAtiva);
   const [filtro, setFiltro] = useState<"todos" | "receber" | "pagar">("todos");
   const [aba, setAba] = useState<"abertos" | "pagos">("abertos");
   const [form, setForm] = useState<typeof VAZIO | null>(null);
@@ -31,7 +36,7 @@ function Financeiro() {
   const somar = (f: (l: Lancamento) => boolean) => dados.filter(f).reduce((s, l) => s + l.valor, 0);
   async function salvar() {
     if (!form) return;
-    try { await gravar({ autor, escritas: [{ colecao: "lancamentos", registro: { ...form, id: novoId(), origem: "manual" } }] }); setForm(null); toast.success("Lançamento criado"); }
+    try { await gravar({ autor, escritas: [{ colecao: "lancamentos", registro: { ...form, origemLancamento: vePessoal ? form.origemLancamento : "empresa", id: novoId(), origem: "manual" } }] }); setForm(null); toast.success("Lançamento criado"); }
     catch (e) { toast.error(erroMsg(e)); }
   }
   async function baixar(l: Lancamento) {
@@ -41,7 +46,14 @@ function Financeiro() {
   const set = (k: keyof typeof VAZIO) => (e: { target: { value: string } }) => setForm((f) => f && { ...f, [k]: e.target.value });
   return (
     <div className="space-y-4">
-      <PageHeader titulo="Financeiro" acoes={<Button onClick={() => setForm({ ...VAZIO })}><Plus className="mr-1 h-4 w-4" />Novo lançamento</Button>} />
+      <PageHeader titulo={contaAtiva === "pessoal" ? "Financeiro · Pessoal (Dayane)" : "Financeiro · Empresa"} acoes={<Button onClick={() => setForm({ ...VAZIO, origemLancamento: contaAtiva })}><Plus className="mr-1 h-4 w-4" />Novo lançamento</Button>} />
+      {vePessoal && (
+        <div className="inline-flex gap-1 rounded-lg border p-1">
+          {([["empresa", "Empresa (Adriano Auto Som)"], ["pessoal", "Pessoal (Dayane)"]] as const).map(([k, r]) => (
+            <Button key={k} size="sm" variant={contaAtiva === k ? "default" : "ghost"} onClick={() => setConta(k)}>{r}</Button>
+          ))}
+        </div>
+      )}
       <div className="grid gap-4 sm:grid-cols-4">
         <Stat rotulo="Recebido no mês" tom="ok" valor={brl(somar((l) => l.tipo === "receber" && l.pagoEm.slice(0, 7) === mes))} />
         <Stat rotulo="Pago no mês" tom="perigo" valor={brl(somar((l) => l.tipo === "pagar" && l.pagoEm.slice(0, 7) === mes))} />
@@ -73,6 +85,14 @@ function Financeiro() {
           <DialogHeader><DialogTitle>Novo lançamento</DialogTitle></DialogHeader>
           {form && (
             <div className="grid gap-3 sm:grid-cols-2">
+              {vePessoal && (
+                <Campo rotulo="Conta" className="sm:col-span-2">
+                  <select className={SEL} value={form.origemLancamento} onChange={set("origemLancamento")}>
+                    <option value="empresa">Empresa (Adriano Auto Som)</option>
+                    <option value="pessoal">Pessoal (Dayane)</option>
+                  </select>
+                </Campo>
+              )}
               <Campo rotulo="Tipo"><select className={SEL} value={form.tipo} onChange={set("tipo")}><option value="pagar">A pagar</option><option value="receber">A receber</option></select></Campo>
               <Campo rotulo="Valor (R$)"><Input type="number" step="0.01" value={form.valor} onChange={set("valor")} /></Campo>
               <Campo rotulo="Descrição" className="sm:col-span-2"><Input value={form.descricao} onChange={set("descricao")} /></Campo>

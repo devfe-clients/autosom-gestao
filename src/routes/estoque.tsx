@@ -5,7 +5,7 @@ import { Pencil, Plus, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Campo, PageHeader, SEL, Tabela, TD, Vazio, erroMsg } from "@/components/app/kit";
+import { Campo, PageHeader, SEL, Stat, Tabela, TD, Vazio, erroMsg } from "@/components/app/kit";
 import { gravar, novoId, useColecao } from "@/lib/db";
 import { useAuth } from "@/lib/auth";
 import { meta } from "@/lib/meta";
@@ -26,11 +26,19 @@ function Estoque() {
   const { dados } = useColecao<Produto>("produtos");
   const { dados: movs } = useColecao<Movimento>("movimentos");
   const [busca, setBusca] = useState("");
+  const [categoria, setCategoria] = useState("");
   const [form, setForm] = useState<Form | null>(null);
   const [ajuste, setAjuste] = useState<{ p: Produto; delta: string; obs: string } | null>(null);
+  const verCusto = pode("ver-custo");
+  const categorias = [...new Set<string>([...categoriasProduto, ...dados.map((p) => p.categoria).filter(Boolean)])].sort((a, b) => a.localeCompare(b));
   const lista = dados
+    .filter((p) => !categoria || p.categoria === categoria)
     .filter((p) => `${p.nome} ${p.codigoBarras} ${p.marca ?? ""}`.toLowerCase().includes(busca.toLowerCase()))
     .sort((a, b) => a.nome.localeCompare(b.nome));
+  const totais = lista.reduce(
+    (t, p) => ({ un: t.un + p.quantidade, custo: t.custo + p.quantidade * p.custo, venda: t.venda + p.quantidade * p.precoVenda }),
+    { un: 0, custo: 0, venda: 0 },
+  );
   async function salvar() {
     if (!form) return;
     const atual = dados.find((p) => p.id === form.id);
@@ -52,10 +60,29 @@ function Estoque() {
   const set = (k: keyof typeof VAZIO) => (e: { target: { value: string } }) => setForm((f) => f && { ...f, [k]: e.target.value });
   return (
     <div className="space-y-6">
-      <PageHeader titulo="Estoque" descricao={`${dados.length} produtos · valor em estoque ${brl(dados.reduce((s, p) => s + p.custo * p.quantidade, 0))}`} acoes={<Button onClick={() => setForm({ ...VAZIO })}><Plus className="mr-1 h-4 w-4" />Novo produto</Button>} />
-      <Input className="max-w-sm" placeholder="Buscar por nome, código ou marca" value={busca} onChange={(e) => setBusca(e.target.value)} />
+      <PageHeader titulo="Estoque" descricao={`${lista.length} de ${dados.length} produtos${busca || categoria ? " (filtrado)" : ""}`} acoes={<Button onClick={() => setForm({ ...VAZIO })}><Plus className="mr-1 h-4 w-4" />Novo produto</Button>} />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Stat rotulo="Unidades em estoque" valor={String(totais.un)} detalhe={`${lista.length} produtos`} />
+        {verCusto && <Stat rotulo="Valor a custo" valor={brl(totais.custo)} />}
+        <Stat rotulo="Valor a preço de venda" valor={brl(totais.venda)} />
+        {verCusto && (
+          <Stat
+            rotulo="Lucro projetado"
+            tom="ok"
+            valor={brl(totais.venda - totais.custo)}
+            detalhe={totais.venda > 0 ? `${(((totais.venda - totais.custo) / totais.venda) * 100).toFixed(1)}% de margem` : undefined}
+          />
+        )}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Input className="max-w-sm" placeholder="Buscar por nome, código ou marca" value={busca} onChange={(e) => setBusca(e.target.value)} />
+        <select className={`${SEL} w-full sm:w-64`} value={categoria} onChange={(e) => setCategoria(e.target.value)} aria-label="Filtrar por categoria">
+          <option value="">Todas as categorias</option>
+          {categorias.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+      </div>
       {lista.length === 0 ? <Vazio>Nenhum produto.</Vazio> : (
-        <Tabela cab={["Produto", "Código", "Categoria", ...(pode("ver-custo") ? ["Custo"] : []), "Venda", "Saldo", ""]}>
+        <Tabela cab={["Produto", "Código", "Categoria", ...(verCusto ? ["Custo"] : []), "Venda", "Saldo", "Total em estoque", ""]}>
           {lista.map((p) => (
             <tr key={p.id}>
               <td className={TD}>{p.nome}<div className="text-xs text-muted-foreground">{p.marca}</div></td>
@@ -64,6 +91,10 @@ function Estoque() {
               {pode("ver-custo") && <td className={TD}>{brl(p.custo)}</td>}
               <td className={TD}>{brl(p.precoVenda)}</td>
               <td className={`${TD} font-bold ${p.quantidade <= p.estoqueMinimo ? "text-warning" : ""}`}>{p.quantidade} {p.unidade}</td>
+              <td className={TD}>
+                <div className="font-semibold">{brl(p.quantidade * p.precoVenda)}</div>
+                {verCusto && <div className="text-xs text-muted-foreground">custo {brl(p.quantidade * p.custo)}</div>}
+              </td>
               <td className={`${TD} whitespace-nowrap text-right`}>
                 <Button size="icon" variant="ghost" onClick={() => setForm({ ...VAZIO, ...p, sku: p.sku ?? "", marca: p.marca ?? "", localizacao: p.localizacao ?? "", custo: String(p.custo), precoVenda: String(p.precoVenda), quantidade: String(p.quantidade), estoqueMinimo: String(p.estoqueMinimo) } as Form)}><Pencil className="h-4 w-4" /></Button>
                 {pode("ajustar-estoque") && <Button size="icon" variant="ghost" title="Ajustar saldo" onClick={() => setAjuste({ p, delta: "", obs: "" })}><SlidersHorizontal className="h-4 w-4" /></Button>}
