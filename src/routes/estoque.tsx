@@ -93,7 +93,25 @@ function Estoque() {
               <td className={`${TD} font-bold ${p.quantidade <= p.estoqueMinimo ? "text-warning" : ""}`}>{p.quantidade} {p.unidade}</td>
               <td className={TD}>
                 <div className="font-semibold">{brl(p.quantidade * p.precoVenda)}</div>
-                {verCusto && <div className="text-xs text-muted-foreground">custo {brl(p.quantidade * p.custo)}</div>}
+                {verCusto && (
+                  <div className="text-xs text-muted-foreground flex items-center gap-1.5 flex-wrap">
+                    <span>custo {brl(p.quantidade * p.custo)}</span>
+                    {(() => {
+                      const margemPct = p.custo > 0 ? ((p.precoVenda - p.custo) / p.custo) * 100 : 0;
+                      const q =
+                        margemPct >= 60
+                          ? { label: "▲ Boa", cor: "text-emerald-500" }
+                          : margemPct >= 30
+                          ? { label: "▶ Razoável", cor: "text-amber-500" }
+                          : { label: "▼ Baixa", cor: "text-rose-500" };
+                      return (
+                        <span className={`font-medium ${q.cor}`}>
+                          ({margemPct.toFixed(0)}% {q.label})
+                        </span>
+                      );
+                    })()}
+                  </div>
+                )}
               </td>
               <td className={`${TD} whitespace-nowrap text-right`}>
                 <Button size="icon" variant="ghost" onClick={() => setForm({ ...VAZIO, ...p, sku: p.sku ?? "", marca: p.marca ?? "", localizacao: p.localizacao ?? "", custo: String(p.custo), precoVenda: String(p.precoVenda), quantidade: String(p.quantidade), estoqueMinimo: String(p.estoqueMinimo) } as Form)}><Pencil className="h-4 w-4" /></Button>
@@ -136,6 +154,26 @@ function Estoque() {
               <Campo rotulo="Unidade"><select className={SEL} value={form.unidade} onChange={set("unidade")}>{["UN", "PAR", "KIT", "M", "CX"].map((c) => <option key={c}>{c}</option>)}</select></Campo>
               <Campo rotulo="Custo (R$)"><Input type="number" step="0.01" value={form.custo} onChange={set("custo")} /></Campo>
               <Campo rotulo="Preço de venda (R$)"><Input type="number" step="0.01" value={form.precoVenda} onChange={set("precoVenda")} /></Campo>
+              {(() => {
+                const custo = Number(form.custo) || 0;
+                const venda = Number(form.precoVenda) || 0;
+                if (custo <= 0 && venda <= 0) return null;
+                const margemPct = custo > 0 ? ((venda - custo) / custo) * 100 : 0;
+                const qualidade =
+                  margemPct >= 60
+                    ? { label: "▲ Boa", cor: "text-emerald-500" }
+                    : margemPct >= 30
+                    ? { label: "▶ Razoável", cor: "text-amber-500" }
+                    : { label: "▼ Baixa", cor: "text-rose-500" };
+                return (
+                  <div className="sm:col-span-2 rounded-md bg-muted px-3 py-2 text-sm flex items-center justify-between border border-border">
+                    <span className="text-muted-foreground">Margem sobre custo</span>
+                    <span className={`font-semibold ${qualidade.cor}`}>
+                      {margemPct.toFixed(0)}% {qualidade.label}
+                    </span>
+                  </div>
+                );
+              })()}
               <Campo rotulo={form.id ? "Saldo (use ajuste)" : "Saldo inicial"}><Input type="number" value={form.quantidade} disabled={!!form.id} onChange={set("quantidade")} /></Campo>
               <Campo rotulo="Estoque mínimo"><Input type="number" value={form.estoqueMinimo} onChange={set("estoqueMinimo")} /></Campo>
               <Campo rotulo="Localização" className="sm:col-span-2"><Input value={form.localizacao} onChange={set("localizacao")} /></Campo>

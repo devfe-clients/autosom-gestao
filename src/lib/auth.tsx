@@ -3,6 +3,7 @@ import {
   createUserWithEmailAndPassword,
   getAuth,
   onAuthStateChanged,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut,
   updateProfile,
@@ -25,6 +26,7 @@ type Ctx = {
   pode: (p: Permissao) => boolean;
   entrar: (email: string, senha: string) => Promise<void>;
   sair: () => Promise<void>;
+  redefinirSenha: (email: string) => Promise<void>;
   criarUsuario: (dados: { nome: string; email: string; senha: string; perfil: Perfil; cargo: string; podeVerCusto?: boolean }) => Promise<void>;
   primeiroAcesso: (dados: { nome: string; email: string; senha: string }) => Promise<void>;
 };
@@ -102,6 +104,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
         await signOut(auth);
+      },
+      async redefinirSenha(email) {
+        const e = email.trim().toLowerCase();
+        if (!e) throw new Error("Informe o e-mail.");
+        if (!auth) throw new Error("Disponível apenas com o Firebase configurado.");
+        await sendPasswordResetEmail(auth, e);
       },
       async criarUsuario({ nome, email, senha, perfil, cargo, podeVerCusto = false }) {
         if (!usuario || usuario.perfil !== "proprietaria") throw new Error("Apenas a proprietária cadastra usuários.");

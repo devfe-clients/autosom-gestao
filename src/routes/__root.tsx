@@ -78,16 +78,14 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
-    // Replace these placeholders with the app's name and description when first building the app.
-    // Each content route, / included, must still set its own head(). Never add og:image or
-    // twitter:image here: every page without its own would inherit the root's preview image.
+
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Adriano Auto Som — Sistema de Gestão" },
-      { name: "description", content: "Gestão de OS, PDV, estoque com código de barras e financeiro da Adriano Auto Som." },
+      { title: "Adriano Auto Som — Gestão" },
+      { name: "description", content: "Gestão da Adriano Auto Som." },
       { name: "author", content: "FlyHigh Tech" },
-      { property: "og:title", content: "Adriano Auto Som — Sistema de Gestão" },
+      { property: "og:title", content: "Adriano Auto Som — Gestão" },
       { property: "og:description", content: "Gestão de OS, PDV, estoque com código de barras e financeiro." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

@@ -9,7 +9,7 @@ import { EMPRESA } from "@/lib/empresa";
 import { Campo, erroMsg } from "./kit";
 
 export function LoginScreen() {
-  const { entrar, primeiroAcesso } = useAuth();
+  const { entrar, primeiroAcesso, redefinirSenha } = useAuth();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [nome, setNome] = useState("");
@@ -26,6 +26,16 @@ export function LoginScreen() {
       toast.error(String(erroMsg(err)).includes("auth/") ? "E-mail ou senha incorretos." : erroMsg(err));
     } finally {
       setEnviando(false);
+    }
+  }
+
+  async function esqueciSenha() {
+    if (!email.trim()) return void toast.error("Digite seu e-mail no campo acima primeiro.");
+    try {
+      await redefinirSenha(email);
+      toast.success("Se o e-mail estiver cadastrado, você receberá o link para criar uma nova senha.");
+    } catch (err) {
+      toast.error(erroMsg(err));
     }
   }
 
@@ -58,6 +68,11 @@ export function LoginScreen() {
           )}
           <Campo rotulo="E-mail"><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="username" /></Campo>
           <Campo rotulo="Senha"><Input type="password" value={senha} onChange={(e) => setSenha(e.target.value)} required minLength={6} autoComplete="current-password" /></Campo>
+          {modo === "entrar" && firebaseConfigurado && (
+            <button type="button" className="text-xs text-muted-foreground underline" onClick={() => void esqueciSenha()}>
+              Esqueceu a senha?
+            </button>
+          )}
           <Button type="submit" className="w-full" disabled={enviando}>{enviando ? "Aguarde…" : modo === "entrar" ? "Entrar" : "Criar conta da proprietária"}</Button>
           {firebaseConfigurado ? (
             <button type="button" className="w-full text-center text-xs text-muted-foreground underline" onClick={() => setModo(modo === "entrar" ? "instalar" : "entrar")}>
