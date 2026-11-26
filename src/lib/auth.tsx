@@ -8,7 +8,7 @@ import {
   signOut,
   updateProfile,
 } from "firebase/auth";
-import { doc, getDoc, writeBatch } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { appSecundario, auth, firestore } from "./firebase";
 import { firebaseConfigurado } from "./firebaseConfig";
 import { lerLocal } from "./db/local-adapter";
@@ -28,12 +28,10 @@ type Ctx = {
   sair: () => Promise<void>;
   redefinirSenha: (email: string) => Promise<void>;
   criarUsuario: (dados: { nome: string; email: string; senha: string; perfil: Perfil; cargo: string; podeVerCusto?: boolean }) => Promise<void>;
-  primeiroAcesso: (dados: { nome: string; email: string; senha: string }) => Promise<void>;
 };
 
 const AuthContext = createContext<Ctx | null>(null);
 const CHAVE_LOCAL = "adriano-autosom:sessao";
-let instalando = false;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [usuario, setUsuario] = useState<Sessao | null>(null);
@@ -50,7 +48,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     const fs = firestore;
     return onAuthStateChanged(auth, async (user) => {
-      if (instalando) return;
       if (!user) {
         setUsuario(null);
         setCarregando(false);
@@ -134,41 +131,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             },
           ],
         });
-      },
-      async primeiroAcesso({ nome, email, senha }) {
-        if (!auth || !firestore) throw new Error("Disponível apenas com o Firebase configurado.");
-        instalando = true;
-        const cred = await createUserWithEmailAndPassword(auth, email.trim().toLowerCase(), senha).catch((e) => {
-          instalando = false;
-          throw e;
-        });
-        await updateProfile(cred.user, { displayName: nome });
-        const agora = new Date().toISOString();
-        const uid = cred.user.uid;
-        const auditoriaId = novoId();
-        // As regras só aceitam esta gravação se ainda não existir a instalação.
-        const b = writeBatch(firestore);
-        b.set(doc(firestore, "sistema", "instalacao"), { proprietariaId: uid, criadoEm: agora });
-        b.set(doc(firestore, "usuarios", uid), {
-          nome, email: email.trim().toLowerCase(), perfil: "proprietaria", cargo: "Proprietária", ativo: true,
-          criadoEm: agora, criadoPor: uid, criadoPorNome: nome, atualizadoEm: agora, atualizadoPor: uid, atualizadoPorNome: nome, auditoriaId,
-        });
-        b.set(doc(firestore, "auditoria", auditoriaId), {
-          colecao: "usuarios", registroId: uid, acao: "criar", usuarioId: uid, usuarioNome: nome, data: agora, detalhe: "Instalação do sistema (proprietária)",
-        });
-        try {
-          await b.commit();
-        } catch (e) {
-          console.error("Erro detalhado no primeiro acesso:", e);
-          await cred.user.delete().catch(() => {});
-          instalando = false;
-          const msg = e instanceof Error ? e.message : String(e);
-          throw new Error(msg.includes("permission-denied")
-            ? "Permissão negada pelo Firestore. Verifique se publicou as novas regras."
-            : `Falha na instalação: ${msg}`);
-        }
-        instalando = false;
-        setUsuario({ uid, nome, email, perfil: "proprietaria" });
       },
     };
   }, [usuario, carregando]);

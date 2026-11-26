@@ -9,19 +9,16 @@ import { EMPRESA } from "@/lib/empresa";
 import { Campo, erroMsg } from "./kit";
 
 export function LoginScreen() {
-  const { entrar, primeiroAcesso, redefinirSenha } = useAuth();
+  const { entrar, redefinirSenha } = useAuth();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
-  const [nome, setNome] = useState("");
-  const [modo, setModo] = useState<"entrar" | "instalar">("entrar");
   const [enviando, setEnviando] = useState(false);
 
   async function enviar(e: React.FormEvent) {
     e.preventDefault();
     setEnviando(true);
     try {
-      if (modo === "entrar") await entrar(email, senha);
-      else await primeiroAcesso({ nome, email, senha });
+      await entrar(email, senha);
     } catch (err) {
       toast.error(String(erroMsg(err)).includes("auth/") ? "E-mail ou senha incorretos." : erroMsg(err));
     } finally {
@@ -62,23 +59,16 @@ export function LoginScreen() {
       </div>
       <div className="flex items-center justify-center p-6">
         <form onSubmit={enviar} className="w-full max-w-sm space-y-4">
-          <h2 className="text-2xl font-bold">{modo === "entrar" ? "Entrar" : "Primeiro acesso da proprietária"}</h2>
-          {modo === "instalar" && (
-            <Campo rotulo="Nome"><Input value={nome} onChange={(e) => setNome(e.target.value)} required minLength={2} /></Campo>
-          )}
+          <h2 className="text-2xl font-bold">Entrar</h2>
           <Campo rotulo="E-mail"><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="username" /></Campo>
           <Campo rotulo="Senha"><Input type="password" value={senha} onChange={(e) => setSenha(e.target.value)} required minLength={6} autoComplete="current-password" /></Campo>
-          {modo === "entrar" && firebaseConfigurado && (
+          {firebaseConfigurado && (
             <button type="button" className="text-xs text-muted-foreground underline" onClick={() => void esqueciSenha()}>
               Esqueceu a senha?
             </button>
           )}
-          <Button type="submit" className="w-full" disabled={enviando}>{enviando ? "Aguarde…" : modo === "entrar" ? "Entrar" : "Criar conta da proprietária"}</Button>
-          {firebaseConfigurado ? (
-            <button type="button" className="w-full text-center text-xs text-muted-foreground underline" onClick={() => setModo(modo === "entrar" ? "instalar" : "entrar")}>
-              {modo === "entrar" ? "Primeira vez? Configurar conta da proprietária" : "Voltar para entrar"}
-            </button>
-          ) : (
+          <Button type="submit" className="w-full" disabled={enviando}>{enviando ? "Aguarde…" : "Entrar"}</Button>
+          {!firebaseConfigurado && (
             <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
               <p className="mb-1 font-semibold text-foreground">Modo local de demonstração</p>
               <p>Proprietária: dayane@adrianoautosom.com.br</p>
