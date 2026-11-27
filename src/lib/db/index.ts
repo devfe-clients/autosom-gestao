@@ -33,6 +33,7 @@ const SCHEMAS: Partial<Record<ColecaoNome, ZodType>> = {
   compras: compraSchema,
   fornecedores: fornecedorSchema,
   lancamentos: lancamentoSchema,
+  lancamentosPessoais: lancamentoSchema,
   usuarios: usuarioSchema,
 };
 const NOMES: Record<ColecaoNome, string> = {
@@ -45,6 +46,7 @@ const NOMES: Record<ColecaoNome, string> = {
   compras: "Compra",
   fornecedores: "Fornecedor",
   lancamentos: "Lançamento",
+  lancamentosPessoais: "Lançamento pessoal",
   usuarios: "Usuário",
   auditoria: "Auditoria",
 };

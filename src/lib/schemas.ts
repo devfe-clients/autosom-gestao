@@ -178,7 +178,10 @@ export const checklistSchema = z.object({
   observacoes: z.string().max(1000).default(""),
   responsavel: z.string().default(""),
   dataHora: z.string().default(""),
-  fotos: z.array(z.string()).max(6).default([]),
+  fotos: z
+    .array(z.string().refine((u) => u.startsWith("https://res.cloudinary.com/") || u.startsWith("data:image/"), "Foto com origem inválida"))
+    .max(6)
+    .default([]),
 });
 export type Checklist = z.infer<typeof checklistSchema>;
 

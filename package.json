@@ -12,7 +12,7 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "rules:deploy": "npx firebase-tools deploy --only firestore:rules,storage"
+    "rules:deploy": "npx firebase-tools deploy --only firestore:rules"
   },
   "overrides": {
     "rolldown": "1.2.1",

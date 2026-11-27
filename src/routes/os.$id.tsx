@@ -12,7 +12,6 @@ import { meta } from "@/lib/meta";
 import { brl, centavos, dataHoraBR, hojeISO, linkWhatsApp, somaItens, totalItem } from "@/lib/calc";
 import { EMPRESA } from "@/lib/empresa";
 import { FotosVistoria } from "@/components/app/FotosVistoria";
-import { apagarFoto } from "@/lib/fotos";
 import {
   estadosChecklist, formasPagamento, itensChecklist, statusOS, statusOrcamento,
   type Checklist, type Cliente, type FormaPagamento, type ItemOS, type OrdemServico, type Produto, type Veiculo,
@@ -87,8 +86,6 @@ function Editor() {
       const numero = o.numero || (await proximoNumero("ordens", isOS ? "OS" : "ORC"));
       const reg = { ...o, ...extra, numero };
       await gravar({ autor, escritas: [{ colecao: "ordens", registro: reg, ...(acao ? { acao } : {}), ...(detalhe ? { detalhe } : {}) }] });
-      const mantidas = reg.checklistEntrada?.fotos ?? [];
-      for (const p of salvo?.checklistEntrada?.fotos ?? []) if (!mantidas.includes(p)) void apagarFoto(p).catch(() => {});
       setO(reg);
       carregadoIdRef.current = reg.id;
       toast.success(`${numero} salvo`);
@@ -201,7 +198,6 @@ function Editor() {
           <FotosVistoria
             osId={o.id}
             fotos={ck.fotos ?? []}
-            salvas={salvo?.checklistEntrada?.fotos ?? []}
             onAdicionar={(novas) => mudarFotos((f) => [...f, ...novas])}
             onRemover={(c) => mudarFotos((f) => f.filter((x) => x !== c))}
           />

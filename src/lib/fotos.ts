@@ -1,6 +1,9 @@
-import { deleteObject, getDownloadURL, ref, uploadBytes } from "firebase/storage";
-import { storage } from "./firebase";
 import { firebaseConfigurado } from "./firebaseConfig";
+
+const CLOUD_NAME = (import.meta.env["VITE_CLOUDINARY_CLOUD_NAME"] as string | undefined)?.trim() ?? "";
+const UPLOAD_PRESET = (import.meta.env["VITE_CLOUDINARY_UPLOAD_PRESET"] as string | undefined)?.trim() ?? "";
+const cloudinaryConfigurado = CLOUD_NAME !== "" && UPLOAD_PRESET !== "";
+export const fotosHabilitadas = cloudinaryConfigurado || !firebaseConfigurado;
 
 export const MAX_FOTOS = 6;
 const ALVO_BYTES = 180 * 1024;
@@ -50,24 +53,31 @@ export async function comprimirImagem(arquivo: File): Promise<Blob> {
   }
 }
 
-export async function enviarFoto(osId: string, arquivo: File, indice = 0): Promise<string> {
+export async function enviarFoto(osId: string, arquivo: File): Promise<string> {
   const blob = await comprimirImagem(arquivo);
-  if (!storage) {
-    if (firebaseConfigurado) throw new Error("Armazenamento de fotos indisponível.");
+  if (!cloudinaryConfigurado) {
+    if (firebaseConfigurado) throw new Error("Envio de fotos ainda não configurado.");
     return comoDataURL(blob);
   }
-  const ext = blob.type === "image/webp" ? "webp" : "jpg";
-  const caminho = `os/${osId}/${Date.now()}-${indice}.${ext}`;
-  await uploadBytes(ref(storage, caminho), blob, { contentType: blob.type });
-  return caminho;
-}
-
-export async function urlFoto(caminho: string): Promise<string> {
-  if (caminho.startsWith("data:") || !storage) return caminho;
-  return getDownloadURL(ref(storage, caminho));
-}
-
-export async function apagarFoto(caminho: string): Promise<void> {
-  if (caminho.startsWith("data:") || !storage) return;
-  await deleteObject(ref(storage, caminho));
+  const form = new FormData();
+  form.append("file", blob, `vistoria.${blob.type === "image/webp" ? "webp" : "jpg"}`);
+  form.append("upload_preset", UPLOAD_PRESET);
+  form.append("tags", `os-${osId}`); 
+  let resp: Response;
+  try {
+    resp = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+      method: "POST",
+      body: form,
+      signal: AbortSignal.timeout(30_000),
+    });
+  } catch {
+    throw new Error("Sem conexão para enviar a foto. Tente novamente.");
+  }
+  const dados = (await resp.json().catch(() => null)) as { secure_url?: string; error?: { message?: string } } | null;
+  if (!resp.ok) {
+    throw new Error(dados?.error?.message ? `Falha no envio da foto: ${dados.error.message}` : `Falha no envio da foto (${resp.status}).`);
+  }
+  const url = dados?.secure_url ?? "";
+  if (!url.startsWith("https://res.cloudinary.com/")) throw new Error("Resposta inesperada do serviço de imagens.");
+  return url;
 }

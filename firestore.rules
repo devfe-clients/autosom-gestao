@@ -143,6 +143,13 @@ service cloud.firestore {
       allow read, create, update, delete: if ehDona() && lancamentoValido() && carimboOk();
     }
 
+    // Contas pessoais da proprietária: só ela lê e grava
+    match /lancamentosPessoais/{id} {
+      allow read: if ehDona();
+      allow create, update: if ehDona() && lancamentoValido() && carimboOk();
+      allow delete: if ehDona();
+    }
+
     // Demais coleções (clientes, veículos, OS, vendas, compras...): só usuário ativo
     match /{colecao}/{id} {
       allow read: if usuarioAtivo() && !(colecao in colecoesEspeciais());
