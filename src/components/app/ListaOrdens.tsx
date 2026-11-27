@@ -15,6 +15,7 @@ export function ListaOrdens({ tipo }: { tipo: "os" | "orcamento" }) {
   const [busca, setBusca] = useState("");
   const [status, setStatus] = useState("");
   const os = tipo === "os";
+  const search: { t?: "orcamento" } = os ? {} : { t: "orcamento" };
   const cli = (id: string) => clientes.find((c) => c.id === id)?.nome ?? "—";
   const placa = (id: string) => veiculos.find((v) => v.id === id)?.placa ?? "";
   const lista = dados
@@ -37,7 +38,7 @@ export function ListaOrdens({ tipo }: { tipo: "os" | "orcamento" }) {
         <Tabela cab={["Nº", "Emissão", "Cliente", "Placa", "Total", "Situação", "Pago"]}>
           {lista.map((o) => (
             <tr key={o.id} className="hover:bg-muted/40">
-              <td className={TD}><Link to="/os/$id" params={{ id: o.id }} className="font-mono font-semibold text-primary underline-offset-2 hover:underline">{o.numero}</Link></td>
+              <td className={TD}><Link to="/os/$id" params={{ id: o.id }} search={search} className="font-mono font-semibold text-primary underline-offset-2 hover:underline">{o.numero}</Link></td>
               <td className={TD}>{dataBR(o.emissao)}</td>
               <td className={TD}>{cli(o.clienteId)}</td>
               <td className={`${TD} font-mono`}>{placa(o.veiculoId) || "—"}</td>

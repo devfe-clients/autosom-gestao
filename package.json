@@ -11,7 +11,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "rules:deploy": "npx firebase-tools deploy --only firestore:rules,storage"
   },
   "overrides": {
     "rolldown": "1.2.1",

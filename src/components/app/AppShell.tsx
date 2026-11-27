@@ -37,9 +37,16 @@ const GRUPOS: { titulo: string; itens: Item[] }[] = [
 ];
 const TODOS = GRUPOS.flatMap((g) => g.itens);
 
-function permDaRota(path: string): Permissao | null {
+function useEhOrcamento() {
+  return useRouterState({
+    select: (s) => s.location.pathname.includes("orcamento") || (s.location.search as { t?: unknown }).t === "orcamento",
+  });
+}
+
+function permDaRota(path: string, ehOrcamento: boolean): Permissao | null {
   if (path === "/") return "painel";
-  if (path.startsWith("/os/")) return "os";
+  if (ehOrcamento) return "orcamentos";
+  if (path.startsWith("/os")) return "os";
   const item = TODOS.find((i) => i.to !== "/" && path.startsWith(i.to));
   return item?.perm ?? null;
 }
@@ -47,6 +54,7 @@ function permDaRota(path: string): Permissao | null {
 function Nav({ onNav }: { onNav?: (() => void) | undefined }) {
   const { pode } = useAuth();
   const path = useRouterState({ select: (s) => s.location.pathname });
+  const ehOrcamento = useEhOrcamento();
   return (
     <nav className="flex-1 space-y-5 overflow-y-auto p-3">
       {GRUPOS.map((g) => {
@@ -56,7 +64,10 @@ function Nav({ onNav }: { onNav?: (() => void) | undefined }) {
           <div key={g.titulo}>
             <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">{g.titulo}</p>
             {itens.map((i) => {
-              const ativo = i.to === "/" ? path === "/" : path.startsWith(i.to);
+              const ativo = i.to === "/" ? path === "/"
+                : i.to === "/orcamentos" ? ehOrcamento
+                : i.to === "/os" ? path.startsWith("/os") && !ehOrcamento
+                : path.startsWith(i.to);
               return (
                 <Link key={i.to} to={i.to} onClick={onNav}
                   className={cn("flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
@@ -99,10 +110,11 @@ function Lateral({ onNav }: { onNav?: () => void }) {
 export function AppShell({ children }: { children: ReactNode }) {
   const { usuario, carregando, pode } = useAuth();
   const [aberto, setAberto] = useState(false);
+  const ehOrcamento = useEhOrcamento();
   const path = useRouterState({ select: (s) => s.location.pathname });
   if (carregando) return <div className="flex min-h-screen items-center justify-center text-muted-foreground">Carregando…</div>;
   if (!usuario) return <LoginScreen />;
-  const perm = permDaRota(path);
+  const perm = permDaRota(path, ehOrcamento);
   const permitido = !perm || pode(perm);
   return (
     <div className="flex min-h-screen">

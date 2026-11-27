@@ -178,6 +178,7 @@ export const checklistSchema = z.object({
   observacoes: z.string().max(1000).default(""),
   responsavel: z.string().default(""),
   dataHora: z.string().default(""),
+  fotos: z.array(z.string()).max(6).default([]),
 });
 export type Checklist = z.infer<typeof checklistSchema>;
 

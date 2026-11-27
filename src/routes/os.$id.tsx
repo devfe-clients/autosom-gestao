@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, PackageMinus, Plus, Printer, Trash2, Wallet } from "lucide-react";
+import { ArrowLeft, MessageCircle, PackageMinus, Plus, Printer, Trash2, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,43 +9,57 @@ import { Campo, PageHeader, SEL, StatusBadge, erroMsg } from "@/components/app/k
 import { gravar, novoId, proximoNumero, useColecao } from "@/lib/db";
 import { useAuth } from "@/lib/auth";
 import { meta } from "@/lib/meta";
-import { brl, centavos, dataHoraBR, hojeISO, somaItens, totalItem } from "@/lib/calc";
+import { brl, centavos, dataHoraBR, hojeISO, linkWhatsApp, somaItens, totalItem } from "@/lib/calc";
 import { EMPRESA } from "@/lib/empresa";
+import { FotosVistoria } from "@/components/app/FotosVistoria";
+import { apagarFoto } from "@/lib/fotos";
 import {
   estadosChecklist, formasPagamento, itensChecklist, statusOS, statusOrcamento,
   type Checklist, type Cliente, type FormaPagamento, type ItemOS, type OrdemServico, type Produto, type Veiculo,
 } from "@/lib/schemas";
 
 export const Route = createFileRoute("/os/$id")({
+  validateSearch: (s: Record<string, unknown>): { t?: "orcamento" } => (s["t"] === "orcamento" ? { t: "orcamento" } : {}),
   head: () => meta("Ordem de serviço", "Detalhes da ordem de serviço ou orçamento."),
   component: Editor,
 });
 
 type O = Omit<OrdemServico, "id"> & { id: string };
-const checkVazio = (): Checklist => ({ itens: {}, combustivel: "1/2", km: 0, tensaoBateria: "", pertences: "", observacoes: "", responsavel: "", dataHora: "" });
+const checkVazio = (): Checklist => ({ itens: {}, combustivel: "1/2", km: 0, tensaoBateria: "", pertences: "", observacoes: "", responsavel: "", dataHora: "", fotos: [] });
+const novaOrdem = (id: string): O => ({ id: novoId(), numero: "", tipo: id === "nova-os" ? "os" : "orcamento", clienteId: "", veiculoId: "", status: "Aberta", situacaoOrcamento: "Pendente", emissao: new Date().toISOString(), previsao: "", validadeDias: 7, servicoSolicitado: "", observacoes: "", garantiaDias: 90, tecnico: "", itens: [], descontoGeral: 0, orcamentoOrigemId: "", pago: false, checklistEntrada: checkVazio() });
 
 function Editor() {
   const { id } = Route.useParams();
   const nav = useNavigate();
+  const { t } = Route.useSearch();
   const { autor } = useAuth();
   const { dados: ordens, carregando } = useColecao<OrdemServico>("ordens");
   const { dados: clientes } = useColecao<Cliente>("clientes");
   const { dados: veiculos } = useColecao<Veiculo>("veiculos");
   const { dados: produtos } = useColecao<Produto>("produtos");
   const novo = id === "nova-os" || id === "novo-orcamento";
-  const [o, setO] = useState<O | null>(null);
+  const [o, setO] = useState<O | null>(() => (novo ? novaOrdem(id) : null));
+  const carregadoIdRef = useRef<string | null>(null);
   const [forma, setForma] = useState<FormaPagamento>("PIX");
   const [prodSel, setProdSel] = useState("");
 
   useEffect(() => {
-    if (o && o.id === id) return;
-    if (novo) {
-      setO({ id: novoId(), numero: "", tipo: id === "nova-os" ? "os" : "orcamento", clienteId: "", veiculoId: "", status: "Aberta", situacaoOrcamento: "Pendente", emissao: new Date().toISOString(), previsao: "", validadeDias: 7, servicoSolicitado: "", observacoes: "", garantiaDias: 90, tecnico: "", itens: [], descontoGeral: 0, orcamentoOrigemId: "", pago: false, checklistEntrada: checkVazio() });
-    } else if (!carregando) {
-      const x = ordens.find((r) => r.id === id);
-      if (x) setO({ ...x, checklistEntrada: x.checklistEntrada ?? checkVazio() });
+    if (novo || carregando || carregadoIdRef.current === id) return;
+    const x = ordens.find((r) => r.id === id);
+    if (x) {
+      setO({ ...x, checklistEntrada: x.checklistEntrada ?? checkVazio() });
+      carregadoIdRef.current = id;
     }
-  }, [id, novo, ordens, carregando, o]);
+  }, [id, novo, ordens, carregando]);
+
+  const tipoCarregado = o?.id === id ? o.tipo : undefined;
+  useEffect(() => {
+    if (!tipoCarregado) return;
+    const certo = tipoCarregado === "orcamento" ? "orcamento" : undefined;
+    if (t === certo) return;
+    const search: { t?: "orcamento" } = certo ? { t: certo } : {};
+    void nav({ to: "/os/$id", params: { id }, search, replace: true });
+  }, [tipoCarregado, t, id, nav]);
 
   if (!o) return <p className="text-muted-foreground">{carregando ? "Carregando…" : "Registro não encontrado."}</p>;
   const isOS = o.tipo === "os";
@@ -54,9 +68,18 @@ function Editor() {
   const total = centavos(subtotal - o.descontoGeral);
   const cliente = clientes.find((c) => c.id === o.clienteId);
   const veiculo = veiculos.find((v) => v.id === o.veiculoId);
+  const veic = veiculo ? ` ${veiculo.modelo} (${veiculo.placa})` : "";
+  const mensagemZap = !cliente ? "" : !isOS
+    ? `Olá ${cliente.nome}! Adriano Auto Som. Segue o orçamento ${o.numero} para o seu veículo${veic}. Total: ${brl(total)}. Podemos aprovar o serviço?`
+    : o.status === "Pronta"
+      ? `Olá ${cliente.nome}! Seu veículo${veic} está pronto para retirada na Adriano Auto Som. OS ${o.numero}. Total: ${brl(total)}.`
+      : `Olá ${cliente.nome}! Adriano Auto Som. Sobre a OS ${o.numero} do seu veículo${veic}: situação "${o.status}". Total: ${brl(total)}.`;
+  const linkZap = salvo ? linkWhatsApp(cliente?.telefone, mensagemZap) : null;
   const up = (p: Partial<O>) => setO({ ...o, ...p });
   const upItem = (idx: number, p: Partial<ItemOS>) => up({ itens: o.itens.map((i, j) => (j === idx ? { ...i, ...p } : i)) });
   const upCheck = (p: Partial<Checklist>) => up({ checklistEntrada: { ...(o.checklistEntrada ?? checkVazio()), ...p } });
+  const mudarFotos = (fn: (atual: string[]) => string[]) =>
+    setO((cur) => cur && { ...cur, checklistEntrada: { ...(cur.checklistEntrada ?? checkVazio()), fotos: fn(cur.checklistEntrada?.fotos ?? []) } });
 
   async function salvar(extra: Partial<O> = {}, acao?: "status" | "pagamento", detalhe?: string) {
     if (!o) return false;
@@ -64,9 +87,15 @@ function Editor() {
       const numero = o.numero || (await proximoNumero("ordens", isOS ? "OS" : "ORC"));
       const reg = { ...o, ...extra, numero };
       await gravar({ autor, escritas: [{ colecao: "ordens", registro: reg, ...(acao ? { acao } : {}), ...(detalhe ? { detalhe } : {}) }] });
+      const mantidas = reg.checklistEntrada?.fotos ?? [];
+      for (const p of salvo?.checklistEntrada?.fotos ?? []) if (!mantidas.includes(p)) void apagarFoto(p).catch(() => {});
       setO(reg);
+      carregadoIdRef.current = reg.id;
       toast.success(`${numero} salvo`);
-      if (novo) void nav({ to: "/os/$id", params: { id: reg.id }, replace: true });
+      if (novo) {
+        const search: { t?: "orcamento" } = reg.tipo === "orcamento" ? { t: "orcamento" } : {};
+        void nav({ to: "/os/$id", params: { id: reg.id }, search, replace: true });
+      }
       return true;
     } catch (e) { toast.error(erroMsg(e)); return false; }
   }
@@ -120,6 +149,11 @@ function Editor() {
         <Link to={isOS ? "/os" : "/orcamentos"} className="mb-2 inline-flex items-center text-sm text-muted-foreground"><ArrowLeft className="mr-1 h-4 w-4" />Voltar</Link>
         <PageHeader titulo={`${isOS ? "OS" : "Orçamento"} ${o.numero || "(nova)"}`} descricao={salvo ? `Criada por ${salvo.criadoPorNome} em ${dataHoraBR(salvo.criadoEm)} · alterada por ${salvo.atualizadoPorNome} em ${dataHoraBR(salvo.atualizadoEm)}` : "Ainda não salva"} acoes={<>
           <Button variant="secondary" onClick={() => window.print()}><Printer className="mr-1 h-4 w-4" />Imprimir</Button>
+          {linkZap ? (
+            <Button asChild variant="secondary"><a href={linkZap} target="_blank" rel="noopener noreferrer"><MessageCircle className="mr-1 h-4 w-4" />WhatsApp</a></Button>
+          ) : (
+            <Button variant="secondary" disabled title={salvo ? "Cliente sem telefone válido" : "Salve antes de enviar"}><MessageCircle className="mr-1 h-4 w-4" />WhatsApp</Button>
+          )}
           {!isOS && salvo && o.situacaoOrcamento !== "Convertido" && <Button variant="secondary" onClick={() => void converter()}>Converter em OS</Button>}
           <Button onClick={() => void salvar()}>Salvar</Button>
         </>} />
@@ -164,6 +198,13 @@ function Editor() {
             <Campo rotulo="Tensão bateria"><Input value={ck.tensaoBateria ?? ""} onChange={(e) => upCheck({ tensaoBateria: e.target.value })} /></Campo>
             <Campo rotulo="Pertences no veículo"><Input value={ck.pertences ?? ""} onChange={(e) => upCheck({ pertences: e.target.value })} /></Campo>
           </div>
+          <FotosVistoria
+            osId={o.id}
+            fotos={ck.fotos ?? []}
+            salvas={salvo?.checklistEntrada?.fotos ?? []}
+            onAdicionar={(novas) => mudarFotos((f) => [...f, ...novas])}
+            onRemover={(c) => mudarFotos((f) => f.filter((x) => x !== c))}
+          />
           <Button size="sm" variant="secondary" className="mt-3 nao-imprimir" onClick={() => upCheck({ responsavel: autor.nome, dataHora: new Date().toISOString() })}>Assinar checklist</Button>
           {ck.responsavel && <p className="mt-2 text-xs text-muted-foreground">Conferido por {ck.responsavel} em {dataHoraBR(ck.dataHora)}</p>}
         </section>
