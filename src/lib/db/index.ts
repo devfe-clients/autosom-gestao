@@ -97,7 +97,7 @@ export async function gravar(opts: {
       usuarioId: autor.uid,
       usuarioNome: autor.nome,
       data: agora,
-      detalhe: (e.detalhe ?? `${NOMES[e.colecao]} ${rotulo(final)}`).slice(0, 500),
+      detalhe: e.colecao === "lancamentosPessoais" ? "Lançamento pessoal atualizado (conteúdo privado)" : (e.detalhe ?? `${NOMES[e.colecao]} ${rotulo(final)}`).slice(0, 500),
     });
     return { colecao: e.colecao, registro: { ...final, auditoriaId } };
   });
@@ -111,7 +111,7 @@ export async function gravar(opts: {
       usuarioId: autor.uid,
       usuarioNome: autor.nome,
       data: agora,
-      detalhe: (rm.detalhe ?? `${NOMES[rm.colecao]} excluído`).slice(0, 500),
+      detalhe: rm.colecao === "lancamentosPessoais" ? "Lançamento pessoal excluído (conteúdo privado)" : (rm.detalhe ?? `${NOMES[rm.colecao]} excluído`).slice(0, 500),
     });
   }
   await db.commit({ escritas, movimentos: opts.movimentos ?? [], remocoes, auditorias, autor, agora });

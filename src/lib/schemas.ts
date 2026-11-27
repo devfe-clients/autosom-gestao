@@ -287,8 +287,12 @@ export const lancamentoSchema = z
     ...base,
     tipo: z.enum(["receber", "pagar"]),
     descricao: z.string().trim().min(2, "Descrição obrigatória").max(160),
-    valor: z.coerce.number().positive("Valor inválido"),
-    vencimento: z.string().min(1, "Informe o vencimento"),
+    valor: z.coerce.number().positive("Valor inválido").max(100_000_000),
+    valorPago: z.number().min(0).optional(),
+    dataUltimoPagamento: z.string().default(""),
+    pagamentos: z.array(z.object({ id: z.string().min(1), valor: z.number().positive(), data: z.string().min(10), formaPagamento: z.enum(formasPagamento), usuarioNome: z.string().min(1) })).max(100).default([]),
+    clienteId: z.string().default(""),
+    vencimento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Informe o vencimento"),
     pagoEm: z.string().default(""),
     formaPagamento: z.enum(formasPagamento).default("PIX"),
     categoria: z.string().trim().max(60).default("Outros"),
@@ -297,6 +301,12 @@ export const lancamentoSchema = z
     referenciaId: z.string().default(""),
     baixadoPor: z.string().default(""),
     origemLancamento: z.enum(["empresa", "pessoal"]).default("empresa"),
+  }).superRefine((l, ctx) => {
+    const totalPago = l.valorPago ?? (l.pagoEm ? l.valor : 0);
+    const historico = Math.round(l.pagamentos.reduce((s, p) => s + p.valor, 0) * 100) / 100;
+    if (totalPago > l.valor) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Valor pago maior que o lançamento", path: ["valorPago"] });
+    if (historico > totalPago + 0.001) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Histórico de pagamentos inconsistente", path: ["pagamentos"] });
+    if (l.valorPago !== undefined && Boolean(l.pagoEm) !== (l.valorPago === l.valor)) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Data de quitação inconsistente", path: ["pagoEm"] });
   });
 export type Lancamento = z.infer<typeof lancamentoSchema>;
 

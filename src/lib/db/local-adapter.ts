@@ -1,3 +1,4 @@
+import { validarConflitoFinanceiro } from "./financeiro-conflito";
 import { aplicarMovimentos } from "./motor-estoque";
 import type { ColecaoNome, DBAdapter, Pacote, Registro } from "./types";
 
@@ -32,15 +33,15 @@ export const localAdapter: DBAdapter = {
   },
   observar(colecao, cb) {
     if (!listeners.has(colecao)) listeners.set(colecao, new Set());
-    listeners.get(colecao)!.add(cb);
-    return () => listeners.get(colecao)!.delete(cb);
+    listeners.get(colecao)?.add(cb);
+    return () => listeners.get(colecao)?.delete(cb);
   },
   async commit(p: Pacote) {
     // Monta o estado em memória primeiro; só grava se tudo passar (atomicidade).
     const cache = new Map<ColecaoNome, Registro[]>();
     const col = (c: ColecaoNome) => {
       if (!cache.has(c)) cache.set(c, lerLocal<Registro>(c));
-      return cache.get(c)!;
+      return cache.get(c) ?? [];
     };
     const upsert = (c: ColecaoNome, r: Registro) => {
       const arr = col(c);
@@ -48,7 +49,10 @@ export const localAdapter: DBAdapter = {
       if (i >= 0) arr[i] = { ...arr[i], ...r };
       else arr.unshift(r);
     };
-    for (const e of p.escritas) upsert(e.colecao, e.registro);
+    for (const e of p.escritas) {
+      if (e.colecao === "lancamentos" || e.colecao === "lancamentosPessoais") validarConflitoFinanceiro(col(e.colecao).find(x => x.id === e.registro.id), e.registro);
+      upsert(e.colecao, e.registro);
+    }
     if (p.movimentos.length) {
       const mapa = new Map(col("produtos").map((x) => [x.id, x]));
       const r = aplicarMovimentos(mapa, p.movimentos, p.autor, p.agora);

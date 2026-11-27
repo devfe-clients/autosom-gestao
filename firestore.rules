@@ -69,14 +69,42 @@ service cloud.firestore {
         && d.saldoApos == d.saldoAnterior + d.delta
         && d.get('criadoPor', null) == request.auth.uid;
     }
+    function valorPago(d) {
+      return d.get('valorPago', d.get('pagoEm', '') != '' ? d.valor : 0);
+    }
+    function ultimoPagamentoValido(d, anterior) {
+      let h = d.get('pagamentos', []);
+      let p = h[h.size() - 1];
+      return p.valor is number && p.valor > 0
+        && p.valor <= d.valor - valorPago(anterior)
+        && valorPago(d) == valorPago(anterior) + p.valor
+        && p.formaPagamento in ['Dinheiro', 'PIX', 'Débito', 'Crédito', 'Boleto', 'Transferência']
+        && textoOk(p.get('data', null), 10, 40)
+        && textoOk(p.get('usuarioNome', null), 1, 120)
+        && textoOk(p.get('id', null), 1, 200);
+    }
+    function historicoPagamentoValido() {
+      let d = request.resource.data;
+      let h = d.get('pagamentos', []);
+      let a = resource.data;
+      let anterior = a.get('pagamentos', []);
+      return (h == anterior && valorPago(d) == valorPago(a))
+        || (h.size() == anterior.size() + 1
+          && h == anterior.concat([h[h.size() - 1]])
+          && ultimoPagamentoValido(d, a));
+    }
     function lancamentoValido() {
       let d = request.resource.data;
       return d.get('tipo', null) in ['receber', 'pagar']
         && textoOk(d.get('descricao', null), 2, 160)
-        && d.get('valor', null) is number && d.valor > 0
-        && textoOk(d.get('vencimento', null), 1, 40)
-        && d.get('origemLancamento', 'empresa') in ['empresa', 'pessoal']
-        && (d.get('origemLancamento', 'empresa') == 'empresa' || ehDona());
+        && d.get('valor', null) is number && d.valor > 0 && d.valor <= 100000000
+        && textoOk(d.get('vencimento', null), 10, 10)
+        && d.vencimento.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && numOk(valorPago(d), d.valor)
+        && d.get('pagamentos', []) is list && d.get('pagamentos', []).size() <= 100
+        && (d.get('valorPago', null) == null
+          || ((d.get('pagoEm', '') != '') == (valorPago(d) == d.valor)))
+        && d.get('origemLancamento', 'empresa') in ['empresa', 'pessoal'];
     }
     function usuarioValido() {
       let d = request.resource.data;
@@ -134,20 +162,24 @@ service cloud.firestore {
 
     match /lancamentos/{id} {
       allow read: if usuarioAtivo();
-      allow create, update: if usuarioAtivo() && lancamentoValido() && carimboOk();
-      allow delete: if ehDona();
+      allow create: if usuarioAtivo() && lancamentoValido() && carimboOk()
+        && request.resource.data.get('origemLancamento', 'empresa') == 'empresa'
+        && request.resource.data.get('pagamentos', []).size() == 0;
+      allow update: if usuarioAtivo() && lancamentoValido() && carimboOk()
+        && request.resource.data.get('origemLancamento', 'empresa') == 'empresa'
+        && historicoPagamentoValido();
+      allow delete: if ehDona() && resource.data.get('origem', 'manual') == 'manual' && valorPago(resource.data) == 0;
     }
 
-    //contas pessoais da proprietária: nenhum funcionário tem leitura ou gravação
-    match /lancamentosPessoais/{id} {
-      allow read, create, update, delete: if ehDona() && lancamentoValido() && carimboOk();
-    }
-
-    // Contas pessoais da proprietária: só ela lê e grava
     match /lancamentosPessoais/{id} {
       allow read: if ehDona();
-      allow create, update: if ehDona() && lancamentoValido() && carimboOk();
-      allow delete: if ehDona();
+      allow create: if ehDona() && lancamentoValido() && carimboOk()
+        && request.resource.data.get('origemLancamento', '') == 'pessoal'
+        && request.resource.data.get('pagamentos', []).size() == 0;
+      allow update: if ehDona() && lancamentoValido() && carimboOk()
+        && request.resource.data.get('origemLancamento', '') == 'pessoal'
+        && historicoPagamentoValido();
+      allow delete: if ehDona() && resource.data.get('origem', 'manual') == 'manual' && valorPago(resource.data) == 0;
     }
 
     // Demais coleções (clientes, veículos, OS, vendas, compras...): só usuário ativo

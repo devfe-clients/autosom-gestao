@@ -28,3 +28,9 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+## Financial reporting
+- Keep payment balance, legacy-payment compatibility and date aggregation in `src/lib/financeiro.ts`, shared by Financeiro and Relatórios, so their totals agree.
+- Persist each partial payment and cumulative paid value in its ledger document; Firestore rules validate balance and append-only payment history, while transactions reject concurrent stale payments.
+- Personal ledgers stay in their own collection and never include amounts or descriptions in shared audit details; report queries and exports must remain account-scoped.
+- Reports separate earned sales, actual payment cash flow and current stock snapshots; never add PDV/OS sales to their ledger receipts as a second revenue.

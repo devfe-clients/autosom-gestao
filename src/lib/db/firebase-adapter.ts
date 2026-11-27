@@ -8,6 +8,7 @@ import {
   query,
   runTransaction,
 } from "firebase/firestore";
+import { validarConflitoFinanceiro } from "./financeiro-conflito";
 import { firestore } from "../firebase";
 import { aplicarMovimentos } from "./motor-estoque";
 import type { ColecaoNome, DBAdapter, Pacote, Registro } from "./types";
@@ -29,7 +30,7 @@ export const firebaseAdapter: DBAdapter = {
       query(
         collection(firestore, colecao),
         orderBy(CAMPO_ORDEM[colecao] ?? "criadoEm", "desc"),
-        limit(LIMITE[colecao] ?? 2000),
+        ...(LIMITE[colecao] ? [limit(LIMITE[colecao] ?? 2000)] : []),
       ),
     );
     return snap.docs.map((d) => ({ ...d.data(), id: d.id }) as T);
@@ -44,6 +45,11 @@ export const firebaseAdapter: DBAdapter = {
     // Transação: o saldo é lido no servidor e o Firestore repete tudo em caso de conflito
     // (dois caixas bipando o mesmo item ao mesmo tempo nunca geram saldo errado).
     await runTransaction(fs, async (tx) => {
+      for (const e of p.escritas) {
+        if (e.colecao !== "lancamentos" && e.colecao !== "lancamentosPessoais") continue;
+        const snap = await tx.get(doc(fs, e.colecao, e.registro.id));
+        validarConflitoFinanceiro(snap.exists() ? { ...snap.data(), id: snap.id } : undefined, e.registro);
+      }
       const auditorias = [...p.auditorias];
       const extras: { colecao: ColecaoNome; registro: Registro }[] = [];
       if (p.movimentos.length) {
