@@ -5,7 +5,8 @@ import type { ColecaoNome, DBAdapter, Pacote, Registro } from "./types";
 /** Adaptador local (navegador) para desenvolvimento e demonstração. */
 const PREFIXO = "adriano-autosom:";
 const listeners = new Map<ColecaoNome, Set<() => void>>();
-const canal = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("adriano-autosom") : null;
+const canal =
+  typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("adriano-autosom") : null;
 canal?.addEventListener("message", (e: MessageEvent<ColecaoNome[]>) =>
   e.data.forEach((c) => listeners.get(c)?.forEach((cb) => cb())),
 );
@@ -50,7 +51,11 @@ export const localAdapter: DBAdapter = {
       else arr.unshift(r);
     };
     for (const e of p.escritas) {
-      if (e.colecao === "lancamentos" || e.colecao === "lancamentosPessoais") validarConflitoFinanceiro(col(e.colecao).find(x => x.id === e.registro.id), e.registro);
+      if (e.colecao === "lancamentos" || e.colecao === "lancamentosPessoais")
+        validarConflitoFinanceiro(
+          col(e.colecao).find((x) => x.id === e.registro.id),
+          e.registro,
+        );
       upsert(e.colecao, e.registro);
     }
     if (p.movimentos.length) {
@@ -59,7 +64,11 @@ export const localAdapter: DBAdapter = {
       [...r.produtos, ...r.movimentos].forEach((e) => upsert(e.colecao, e.registro));
       p.auditorias.push(...r.auditorias);
     }
-    for (const rm of p.remocoes) cache.set(rm.colecao, col(rm.colecao).filter((x) => x.id !== rm.id));
+    for (const rm of p.remocoes)
+      cache.set(
+        rm.colecao,
+        col(rm.colecao).filter((x) => x.id !== rm.id),
+      );
     const aud = col("auditoria");
     aud.unshift(...(p.auditorias as unknown as Registro[]));
     cache.set("auditoria", aud.slice(0, 5000));

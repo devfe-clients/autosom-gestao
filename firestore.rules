@@ -77,7 +77,8 @@ service cloud.firestore {
       let p = h[h.size() - 1];
       return p.valor is number && p.valor > 0
         && p.valor <= d.valor - valorPago(anterior)
-        && valorPago(d) == valorPago(anterior) + p.valor
+        && valorPago(d) - valorPago(anterior) - p.valor >= -0.001
+        && valorPago(d) - valorPago(anterior) - p.valor <= 0.001
         && p.formaPagamento in ['Dinheiro', 'PIX', 'Débito', 'Crédito', 'Boleto', 'Transferência']
         && textoOk(p.get('data', null), 10, 40)
         && textoOk(p.get('usuarioNome', null), 1, 120)
@@ -88,10 +89,11 @@ service cloud.firestore {
       let h = d.get('pagamentos', []);
       let a = resource.data;
       let anterior = a.get('pagamentos', []);
-      return (h == anterior && valorPago(d) == valorPago(a))
+      return (valorPago(a) == 0 || (d.valor == a.valor && d.tipo == a.tipo))
+        && ((h == anterior && valorPago(d) == valorPago(a))
         || (h.size() == anterior.size() + 1
           && h == anterior.concat([h[h.size() - 1]])
-          && ultimoPagamentoValido(d, a));
+          && ultimoPagamentoValido(d, a)));
     }
     function lancamentoValido() {
       let d = request.resource.data;

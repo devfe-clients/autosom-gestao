@@ -37,7 +37,11 @@ export const firebaseAdapter: DBAdapter = {
   },
   observar(colecao, cb) {
     if (!firestore) return () => {};
-    return onSnapshot(collection(firestore, colecao), () => cb(), () => cb());
+    return onSnapshot(
+      collection(firestore, colecao),
+      () => cb(),
+      () => cb(),
+    );
   },
   async commit(p: Pacote) {
     const fs = firestore;
@@ -48,7 +52,10 @@ export const firebaseAdapter: DBAdapter = {
       for (const e of p.escritas) {
         if (e.colecao !== "lancamentos" && e.colecao !== "lancamentosPessoais") continue;
         const snap = await tx.get(doc(fs, e.colecao, e.registro.id));
-        validarConflitoFinanceiro(snap.exists() ? { ...snap.data(), id: snap.id } : undefined, e.registro);
+        validarConflitoFinanceiro(
+          snap.exists() ? { ...snap.data(), id: snap.id } : undefined,
+          e.registro,
+        );
       }
       const auditorias = [...p.auditorias];
       const extras: { colecao: ColecaoNome; registro: Registro }[] = [];
@@ -58,7 +65,13 @@ export const firebaseAdapter: DBAdapter = {
         for (const id of ids) {
           const pendente = p.escritas.find((e) => e.colecao === "produtos" && e.registro.id === id);
           const snap = await tx.get(doc(fs, "produtos", id));
-          if (snap.exists()) mapa.set(id, { ...snap.data(), ...(pendente?.registro ?? {}), id, quantidade: snap.data()["quantidade"] });
+          if (snap.exists())
+            mapa.set(id, {
+              ...snap.data(),
+              ...(pendente?.registro ?? {}),
+              id,
+              quantidade: snap.data()["quantidade"],
+            });
           else if (pendente) mapa.set(id, pendente.registro);
         }
         const r = aplicarMovimentos(mapa, p.movimentos, p.autor, p.agora);
@@ -66,13 +79,18 @@ export const firebaseAdapter: DBAdapter = {
         auditorias.push(...r.auditorias);
       }
       const escritasFinais = p.escritas.filter(
-        (e) => !(e.colecao === "produtos" && extras.some((x) => x.colecao === "produtos" && x.registro.id === e.registro.id)),
+        (e) =>
+          !(
+            e.colecao === "produtos" &&
+            extras.some((x) => x.colecao === "produtos" && x.registro.id === e.registro.id)
+          ),
       );
       for (const e of [...escritasFinais, ...extras]) {
         tx.set(doc(fs, e.colecao, e.registro.id), limpar(e.registro), { merge: true });
       }
       for (const rm of p.remocoes) tx.delete(doc(fs, rm.colecao, rm.id));
-      for (const a of auditorias) tx.set(doc(fs, "auditoria", a.id), limpar(a as unknown as Registro));
+      for (const a of auditorias)
+        tx.set(doc(fs, "auditoria", a.id), limpar(a as unknown as Registro));
     });
   },
 };

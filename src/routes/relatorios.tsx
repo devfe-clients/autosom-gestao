@@ -1,80 +1,971 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { useState } from 'react';
-import { Download, Printer, FilterX, Eye } from 'lucide-react';
-import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Campo, PageHeader, SEL, Stat, Tabela, TD, Vazio } from '@/components/app/kit';
-import { ContaTabs } from '@/components/app/ContaTabs';
-import { useColecao } from '@/lib/db';
-import { useAuth } from '@/lib/auth';
-import { meta } from '@/lib/meta';
-import { brl, hojeISO } from '@/lib/calc';
-import { dentroPeriodo, exportarCSV, movimentacao, pago, restante, statusFinanceiro, type Conta } from '@/lib/financeiro';
-import { itensComerciais, margemSobreVenda, totalOrdem } from '@/lib/relatorios';
-import { formasPagamento, type Lancamento, type OrdemServico, type Venda, type Cliente, type Veiculo, type Produto, type Compra } from '@/lib/schemas';
+import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
+import { Download, Printer, FilterX, Eye } from "lucide-react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Campo, PageHeader, SEL, Stat, Tabela, TD, Vazio } from "@/components/app/kit";
+import { ContaTabs } from "@/components/app/ContaTabs";
+import { useColecao } from "@/lib/db";
+import { useAuth } from "@/lib/auth";
+import { meta } from "@/lib/meta";
+import { brl, hojeISO } from "@/lib/calc";
+import {
+  dentroPeriodo,
+  exportarCSV,
+  movimentacao,
+  pago,
+  restante,
+  statusFinanceiro,
+  type Conta,
+} from "@/lib/financeiro";
+import { itensComerciais, margemSobreVenda, totalOrdem } from "@/lib/relatorios";
+import {
+  formasPagamento,
+  type Lancamento,
+  type OrdemServico,
+  type Venda,
+  type Cliente,
+  type Veiculo,
+  type Produto,
+  type Compra,
+} from "@/lib/schemas";
 
-export const Route = createFileRoute('/relatorios')({head:()=>meta('Relatórios detalhados','Resultados, fluxo de caixa, vendas, serviços, clientes e estoque da Adriano Auto Som com filtros e exportação.'),component:Relatorios});
-type Linha = { id: string; valores: (string | number)[]; detalhe: [string,string][] };
-type Aba = 'financeiro'|'caixa'|'os'|'itens'|'clientes'|'estoque'|'compras';
-function Relatorios() { const {usuario}=useAuth();const [conta,setConta]=useState<Conta>('empresa');const ativa=usuario?.perfil==='proprietaria'?conta:'empresa';return <div className="space-y-4">{usuario?.perfil==='proprietaria'&&<ContaTabs conta={ativa} onChange={setConta}/>}<RelatorioConta key={ativa} conta={ativa}/></div>; }
-function RelatorioConta({conta}:{conta:Conta}) {
-  const {pode}=useAuth();const verCusto=pode('ver-custo');const empresa=conta==='empresa';
-  const {dados:lanc,carregando}=useColecao<Lancamento>(empresa?'lancamentos':'lancamentosPessoais');
-  const {dados:ordens}=useColecao<OrdemServico>('ordens',empresa);const {dados:vendas}=useColecao<Venda>('vendas',empresa);const {dados:clientes}=useColecao<Cliente>('clientes',empresa);const {dados:veiculos}=useColecao<Veiculo>('veiculos',empresa);const {dados:produtos}=useColecao<Produto>('produtos',empresa);const {dados:compras}=useColecao<Compra>('compras',empresa);
-  const [aba,setAba]=useState<Aba>('financeiro');const [de,setDe]=useState(hojeISO().slice(0,8)+'01');const [ate,setAte]=useState(hojeISO());const [busca,setBusca]=useState('');const [tipo,setTipo]=useState('todos');const [situacao,setSituacao]=useState('todas');const [forma,setForma]=useState('todas');const [categoria,setCategoria]=useState('todas');const [origem,setOrigem]=useState('todas');const [clienteId,setClienteId]=useState('todos');const [tecnico,setTecnico]=useState('todos');const [produtoId,setProdutoId]=useState('todos');const [saldoEstoque,setSaldoEstoque]=useState('todos');const [baseData,setBaseData]=useState('vencimento');const [ordenar,setOrdenar]=useState('padrao');const [pagina,setPagina]=useState(1);const [detalhe,setDetalhe]=useState<Linha|null>(null);
-  const invalido=Boolean(de&&ate&&de>ate);const dentro=(s:string)=>!invalido&&dentroPeriodo(s,de,ate);const match=(s:string)=>s.toLowerCase().includes(busca.trim().toLowerCase());
-  const nome=(id:string)=>clientes.find(c=>c.id===id)?.nome??'Sem cliente';const clienteLanc=(l:Lancamento)=>l.clienteId||ordens.find(o=>o.id===l.referenciaId)?.clienteId||'';
-  const financeiros=lanc.filter(l=>(tipo==='todos'||l.tipo===tipo)&&(situacao==='todas'||(situacao==='Parcial'?pago(l)>0&&restante(l)>0:situacao==='nao-pagos'?restante(l)>0:statusFinanceiro(l,hojeISO())===situacao))&&(categoria==='todas'||l.categoria===categoria)&&(origem==='todas'||l.origem===origem)&&(clienteId==='todos'||clienteLanc(l)===clienteId)&&(tecnico==='todos'||ordens.find(o=>o.id===l.referenciaId)?.tecnico===tecnico)&&match(`${l.descricao} ${l.observacao} ${nome(clienteLanc(l))}`));
-  const mov=movimentacao(financeiros,de,ate).filter(p=>forma==='todas'||p.formaPagamento===forma);
-  const selecionados=financeiros.filter(l=>(forma==='todas'||l.formaPagamento===forma)&&(baseData==='vencimento'?dentro(l.vencimento):mov.some(p=>p.lancamento.id===l.id)));
-  const os=ordens.filter(o=>o.tipo==='os'&&o.status!=='Cancelada'&&dentro(o.emissao)&&(situacao==='todas'||o.status===situacao)&&(clienteId==='todos'||o.clienteId===clienteId)&&(tecnico==='todos'||o.tecnico===tecnico)&&match(`${o.numero} ${nome(o.clienteId)} ${o.tecnico} ${o.servicoSolicitado}`));
-  const vs=vendas.filter(v=>dentro(v.data)&&(forma==='todas'||v.formaPagamento===forma)&&(tecnico==='todos'||v.criadoPorNome===tecnico)&&clienteId==='todos'&&match(`${v.numero} ${v.clienteNome} ${v.itens.map(i=>i.descricao).join(' ')}`));
-  const itens=itensComerciais(origem==='pdv'?[]:os,origem==='os'?[]:vs).filter(i=>(produtoId==='todos'||i.produtoId===produtoId)&&(tipo==='todos'||i.tipo===tipo)&&(categoria==='todas'||produtos.find(p=>p.id===i.produtoId)?.categoria===categoria)&&match(`${i.descricao} ${i.documento} ${i.clienteNome} ${nome(i.clienteId)}`));
-  const estoque=produtos.filter(p=>(produtoId==='todos'||p.id===produtoId)&&(categoria==='todas'||p.categoria===categoria)&&(saldoEstoque==='todos'||saldoEstoque==='baixo'&&p.quantidade<=p.estoqueMinimo||saldoEstoque==='zerado'&&p.quantidade===0||saldoEstoque==='positivo'&&p.quantidade>0)&&match(`${p.nome} ${p.codigoBarras} ${p.marca} ${p.localizacao}`));
-  const comprasPeriodo=compras.filter(c=>dentro(c.dataPedido)&&(situacao==='todas'||c.status===situacao)&&(forma==='todas'||c.formaPagamento===forma)&&match(`${c.numero} ${c.fornecedorNome} ${c.notaFiscal}`));
-  const recebidos=mov.filter(p=>p.lancamento.tipo==='receber').reduce((s,p)=>s+p.valor,0);const pagos=mov.filter(p=>p.lancamento.tipo==='pagar').reduce((s,p)=>s+p.valor,0);const receitaItens=itens.reduce((s,i)=>s+i.receita,0);const custoItens=itens.reduce((s,i)=>s+i.custo,0);
-  let cab:string[]=[];let linhas:Linha[]=[];
-  if(aba==='financeiro'){cab=['Vencimento','Descrição','Cliente','Categoria','Tipo','Valor','Pago','Saldo','Situação'];linhas=selecionados.map(l=>({id:l.id,valores:[l.vencimento,l.descricao,empresa?nome(clienteLanc(l)):'—',l.categoria,l.tipo,brl(l.valor),brl(pago(l)),brl(restante(l)),statusFinanceiro(l,hojeISO())],detalhe:[['Descrição',l.descricao],['Origem',l.origem],['Referência',l.referenciaId||'Sem vínculo'],['Observações',l.observacao||'—'],['Valor',brl(l.valor)],['Pago',brl(pago(l))],['Saldo',brl(restante(l))],['Cadastrado por',l.criadoPorNome??'—']]}));}
-  if(aba==='caixa'){cab=['Pagamento','Descrição','Tipo','Categoria','Forma','Valor','Responsável'];linhas=mov.map(p=>({id:p.id,valores:[p.data.slice(0,10),p.lancamento.descricao,p.lancamento.tipo,p.lancamento.categoria,p.formaPagamento,brl(p.valor),p.usuarioNome],detalhe:[['Pagamento',p.data],['Lançamento',p.lancamento.descricao],['Valor',brl(p.valor)],['Forma',p.formaPagamento],['Responsável',p.usuarioNome],['Saldo atual do lançamento',brl(restante(p.lancamento))]]}));}
-  if(aba==='os'){cab=['Emissão','OS','Cliente','Veículo','Técnico','Status','Total'];linhas=os.map(o=>({id:o.id,valores:[o.emissao.slice(0,10),o.numero,nome(o.clienteId),veiculos.find(v=>v.id===o.veiculoId)?.placa??'—',o.tecnico||'—',o.status,brl(totalOrdem(o))],detalhe:[['OS',o.numero],['Cliente',nome(o.clienteId)],['Serviço solicitado',o.servicoSolicitado||'—'],['Status',o.status],['Total',brl(totalOrdem(o))],...o.itens.map(i=>[i.descricao,`${i.quantidade} × ${brl(i.valorUnitario)}`] as [string,string])]}));}
-  if(aba==='itens'){cab=['Data','Documento','Origem','Produto / Serviço','Qtd','Receita',...(verCusto?['Custo histórico','Margem bruta']:[])];linhas=itens.map(i=>({id:i.id,valores:[i.data.slice(0,10),i.documento,i.origem,i.descricao,i.quantidade,brl(i.receita),...(verCusto?[brl(i.custo),brl(i.receita-i.custo)]:[])],detalhe:[['Descrição',i.descricao],['Documento',i.documento],['Cliente',i.clienteNome||nome(i.clienteId)],['Responsável',i.tecnico||'—'],['Quantidade',String(i.quantidade)],['Receita após descontos',brl(i.receita)],...(verCusto?([['Custo histórico',brl(i.custo)],['Margem sobre venda',margemSobreVenda(i.receita,i.custo)?.toFixed(1)+'%']] as [string,string][]):[])]}));}
-  if(aba==='clientes'){cab=['Cliente','Documentos','Total','Ticket médio'];const mapa=new Map<string,{nome:string;docs:Set<string>;valor:number}>();for(const i of itens){const chave=i.clienteId||i.clienteNome||'balcao';const a=mapa.get(chave)??{nome:i.clienteNome||nome(i.clienteId),docs:new Set<string>(),valor:0};a.docs.add(`${i.origem}-${i.documento}`);a.valor+=i.receita;mapa.set(chave,a);}linhas=[...mapa].sort((a,b)=>b[1].valor-a[1].valor).map(([id,c])=>({id,valores:[c.nome,c.docs.size,brl(c.valor),brl(c.valor/c.docs.size)],detalhe:[['Cliente',c.nome],['Total',brl(c.valor)],...itens.filter(i=>(i.clienteId||i.clienteNome||'balcao')===id).map(i=>[i.documento,`${i.descricao} · ${brl(i.receita)}`] as [string,string])]}));}
-  if(aba==='estoque'){cab=['Produto','Código','Categoria','Unidades','Mínimo','Total a venda',...(verCusto?['Total a custo','Margem potencial']:[])];linhas=estoque.map(p=>({id:p.id,valores:[p.nome,p.codigoBarras,p.categoria,p.quantidade,p.estoqueMinimo,brl(p.quantidade*p.precoVenda),...(verCusto?[brl(p.quantidade*p.custo),brl(p.quantidade*(p.precoVenda-p.custo))]:[])],detalhe:[['Produto',p.nome],['Marca',p.marca??'—'],['Localização',p.localizacao??'—'],['Quantidade',`${p.quantidade} ${p.unidade}`],['Preço de venda',brl(p.precoVenda)],...(verCusto?([['Custo unitário',brl(p.custo)],['Margem sobre venda',margemSobreVenda(p.precoVenda,p.custo)?.toFixed(1)+'%']] as [string,string][]):[])]}));}
-  if(aba==='compras'){cab=['Data pedido','Compra','Fornecedor','Situação','Forma','Total'];linhas=comprasPeriodo.map(c=>({id:c.id,valores:[c.dataPedido.slice(0,10),c.numero,c.fornecedorNome,c.status,c.formaPagamento,brl(c.total)],detalhe:[['Compra',c.numero],['Fornecedor',c.fornecedorNome],['Nota fiscal',c.notaFiscal||'—'],['Recebimento',c.dataRecebimento||'Pendente'],...c.itens.map(i=>[i.descricao,`${i.quantidade} × ${brl(i.custoUnitario)}`] as [string,string])]}));}
-  const campoValor=aba==='financeiro'?5:aba==='caixa'?5:aba==='os'?6:aba==='itens'?5:aba==='clientes'?2:aba==='estoque'?5:5;
-  const dinheiro=(v:string|number|undefined)=>Number(String(v??'0').replace(/[^\d,.-]/g,'').replaceAll('.','').replace(',','.'))||0;
-  if(ordenar==='valor')linhas.sort((a,b)=>dinheiro(b.valores[campoValor])-dinheiro(a.valores[campoValor]));else if(ordenar==='nome')linhas.sort((a,b)=>String(a.valores[aba==='estoque'?0:1]).localeCompare(String(b.valores[aba==='estoque'?0:1])));else if(aba!=='estoque'&&aba!=='clientes')linhas.sort((a,b)=>String(b.valores[0]).localeCompare(String(a.valores[0])));
-  const meses=new Map<string,{mes:string;recebido:number;pago:number}>();for(const p of mov){const m=p.data.slice(0,7);const a=meses.get(m)??{mes:m,recebido:0,pago:0};if(p.lancamento.tipo==='receber')a.recebido+=p.valor;else a.pago+=p.valor;meses.set(m,a);}const grafico=[...meses.values()].sort((a,b)=>a.mes.localeCompare(b.mes));
-  const tabs: [Aba,string][]=[['financeiro','Contas'],['caixa','Fluxo de caixa'],...(empresa?([['os','Ordens de serviço'],['itens','Produtos e serviços'],['clientes','Clientes'],['estoque','Estoque atual'],['compras','Compras']] as [Aba,string][]):[])];
-  function limpar(){setBusca('');setTipo('todos');setSituacao('todas');setForma('todas');setCategoria('todas');setOrigem('todas');setClienteId('todos');setTecnico('todos');setProdutoId('todos');setSaldoEstoque('todos');setPagina(1);}
-  function trocar(a:Aba){setAba(a);limpar();setOrdenar('padrao');}
-  const select=(label:string,value:string,change:(v:string)=>void,options:[string,string][]) => <Campo rotulo={label}><select aria-label={label} className={SEL} value={value} onChange={e=>{change(e.target.value);setPagina(1);}}>{options.map(([v,n])=><option key={v} value={v}>{n}</option>)}</select></Campo>;
-  const categorias=aba==='estoque'||aba==='itens'||aba==='clientes'?produtos.map(p=>p.categoria):lanc.map(l=>l.categoria);
-  const nPaginas=Math.max(1,Math.ceil(linhas.length/25));const atual=Math.min(pagina,nPaginas);
-  return <div className="space-y-5"><PageHeader titulo={empresa?'Relatórios · Empresa':'Relatórios · Pessoal'} acoes={<><Button variant="outline" title="Exportar todos os resultados filtrados" onClick={()=>exportarCSV(`relatorio-${conta}-${aba}-${de}-${ate}.csv`,cab,linhas.map(l=>l.valores))}><Download className="mr-2 h-4 w-4"/>CSV</Button><Button variant="outline" title="Imprimir relatório" onClick={()=>window.print()}><Printer className="mr-2 h-4 w-4"/>Imprimir</Button></>}/>
-    <div className="flex flex-wrap gap-1 border-b pb-3" role="tablist" aria-label="Tipo de relatório">{tabs.map(([a,n])=><Button key={a} role="tab" aria-selected={a===aba} variant={a===aba?'default':'ghost'} size="sm" onClick={()=>trocar(a)}>{n}</Button>)}</div>
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{aba!=='estoque'&&<><Campo rotulo="De"><Input aria-label="De" type="date" value={de} onChange={e=>{setDe(e.target.value);setPagina(1);}}/></Campo><Campo rotulo="Até"><Input aria-label="Até" type="date" value={ate} onChange={e=>{setAte(e.target.value);setPagina(1);}}/></Campo></>}<Campo rotulo="Buscar"><Input aria-label="Buscar no relatório" value={busca} onChange={e=>{setBusca(e.target.value);setPagina(1);}} placeholder="Nome, descrição ou documento"/></Campo>{select('Ordenar',ordenar,setOrdenar,[['padrao','Padrão'],['valor','Maior valor'],['nome','Nome / descrição']])}
-      {(aba==='financeiro'||aba==='caixa')&&<>{select('Tipo',tipo,setTipo,[['todos','Todos'],['receber','A receber'],['pagar','A pagar']])}{select('Situação',situacao,setSituacao,[['todas','Todas'],['nao-pagos','Não pagos'],['Em aberto','Em aberto'],['Parcial','Parcial'],['Vencido','Vencido'],['Pago','Pago']])}{select('Categoria',categoria,setCategoria,[['todas','Todas'],...[...new Set(categorias)].sort().map(c=>[c,c] as [string,string])])}{empresa&&select('Origem',origem,setOrigem,[['todas','Todas'],['manual','Manual'],['os','OS'],['pdv','PDV'],['compra','Compra']])}{aba==='financeiro'&&select('Data de referência',baseData,setBaseData,[['vencimento','Vencimento'],['pagamento','Pagamento']])}</>}
-      {(aba==='financeiro'||aba==='caixa'||aba==='compras')&&select('Forma de pagamento',forma,setForma,[['todas','Todas'],...formasPagamento.map(f=>[f,f] as [string,string])])}
-      {empresa&&['financeiro','caixa','os','itens','clientes'].includes(aba)&&select('Cliente',clienteId,setClienteId,[['todos','Todos'],...clientes.map(c=>[c.id,c.nome] as [string,string])])}
-      {empresa&&['os','itens','clientes'].includes(aba)&&select('Técnico / vendedor',tecnico,setTecnico,[['todos','Todos'],...[...new Set([...ordens.map(o=>o.tecnico),...vendas.map(v=>v.criadoPorNome??'')].filter(Boolean))].sort().map(t=>[t,t] as [string,string])])}
-      {aba==='os'&&select('Status da OS',situacao,setSituacao,[['todas','Todos'],...['Aberta','Em execução','Aguardando peça','Pronta','Entregue'].map(s=>[s,s] as [string,string])])}
-      {aba==='compras'&&select('Status da compra',situacao,setSituacao,[['todas','Todos'],...['Pedido','Recebida','Cancelada'].map(s=>[s,s] as [string,string])])}
-      {['itens','clientes'].includes(aba)&&<>{select('Origem',origem,setOrigem,[['todas','OS e PDV'],['os','Somente OS'],['pdv','Somente PDV']])}{select('Tipo de item',tipo,setTipo,[['todos','Todos'],['produto','Produtos'],['servico','Serviços']])}</>}
-      {['estoque','itens','clientes'].includes(aba)&&<>{select('Categoria de produto',categoria,setCategoria,[['todas','Todas'],...[...new Set(categorias)].sort().map(c=>[c,c] as [string,string])])}{select('Produto',produtoId,setProdutoId,[['todos','Todos'],...produtos.map(p=>[p.id,p.nome] as [string,string])])}</>}
-      {aba==='estoque'&&select('Saldo de estoque',saldoEstoque,setSaldoEstoque,[['todos','Todos'],['baixo','Abaixo / no mínimo'],['zerado','Zerado'],['positivo','Com saldo']])}
+export const Route = createFileRoute("/relatorios")({
+  head: () =>
+    meta(
+      "Relatórios detalhados",
+      "Resultados, fluxo de caixa, vendas, serviços, clientes e estoque da Adriano Auto Som com filtros e exportação.",
+    ),
+  component: Relatorios,
+});
+type Linha = { id: string; valores: (string | number)[]; detalhe: [string, string][] };
+type Aba = "financeiro" | "caixa" | "os" | "itens" | "clientes" | "estoque" | "compras";
+function Relatorios() {
+  const { usuario } = useAuth();
+  const [conta, setConta] = useState<Conta>("empresa");
+  const ativa = usuario?.perfil === "proprietaria" ? conta : "empresa";
+  return (
+    <div className="space-y-4">
+      {usuario?.perfil === "proprietaria" && <ContaTabs conta={ativa} onChange={setConta} />}
+      <RelatorioConta key={ativa} conta={ativa} />
     </div>
-    <div className="flex flex-wrap gap-2">{aba!=='estoque'&&<><Button size="sm" variant="outline" onClick={()=>{setDe(hojeISO());setAte(hojeISO());}}>Hoje</Button><Button size="sm" variant="outline" onClick={()=>{setDe(hojeISO().slice(0,8)+'01');setAte(hojeISO());}}>Este mês</Button><Button size="sm" variant="outline" onClick={()=>{setDe(hojeISO().slice(0,4)+'-01-01');setAte(hojeISO());}}>Este ano</Button></>}<Button size="sm" variant="ghost" onClick={limpar}><FilterX className="mr-1 h-4 w-4"/>Limpar filtros</Button></div>
-    {invalido&&aba!=='estoque'?<p className="text-destructive" role="alert">A data inicial não pode ser posterior à final.</p>:null}
-    {(aba==='financeiro'||aba==='caixa')&&<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{aba==='caixa'?<><Stat rotulo="Recebimentos no período" valor={brl(recebidos)} tom="ok"/><Stat rotulo="Pagamentos no período" valor={brl(pagos)} tom="perigo"/><Stat rotulo="Resultado de caixa" valor={brl(recebidos-pagos)} tom={recebidos>=pagos?'ok':'perigo'}/><Stat rotulo="Transações" valor={mov.length}/></>:<><Stat rotulo="Valor dos lançamentos" valor={brl(selecionados.reduce((s,l)=>s+l.valor,0))}/><Stat rotulo="Pago acumulado · seleção" valor={brl(selecionados.reduce((s,l)=>s+pago(l),0))}/><Stat rotulo="A receber · seleção" valor={brl(selecionados.filter(l=>l.tipo==='receber').reduce((s,l)=>s+restante(l),0))} tom="ok"/><Stat rotulo="A pagar · seleção" valor={brl(selecionados.filter(l=>l.tipo==='pagar').reduce((s,l)=>s+restante(l),0))} tom="alerta"/></>}</div>}
-    {aba==='caixa'&&grafico.length>0&&<section><h2 className="mb-3 font-bold">Entradas e saídas por mês</h2><div className="h-64 w-full"><ResponsiveContainer width="100%" height="100%"><BarChart data={grafico}><CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3"/><XAxis dataKey="mes" stroke="var(--color-muted-foreground)"/><YAxis stroke="var(--color-muted-foreground)"/><Tooltip formatter={(v:number)=>brl(v)}/><Legend/><Bar dataKey="recebido" name="Recebido" fill="var(--color-success)"/><Bar dataKey="pago" name="Pago" fill="var(--color-destructive)"/></BarChart></ResponsiveContainer></div></section>}
-    {['itens','clientes'].includes(aba)&&<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Stat rotulo="Receita dos itens · após descontos" valor={brl(receitaItens)}/><Stat rotulo="Quantidade" valor={itens.reduce((s,i)=>s+i.quantidade,0)}/>{verCusto&&<><Stat rotulo="Custo histórico dos itens" valor={brl(custoItens)}/><Stat rotulo="Margem bruta estimada" valor={brl(receitaItens-custoItens)} detalhe={`${margemSobreVenda(receitaItens,custoItens)?.toFixed(1)??'—'}% sobre venda`} tom="ok"/></>}</div>}
-    {aba==='os'&&<div className="grid gap-3 sm:grid-cols-3"><Stat rotulo="Ordens no período" valor={os.length}/><Stat rotulo="Total das OS · emissão" valor={brl(os.reduce((s,o)=>s+totalOrdem(o),0))}/><Stat rotulo="Ticket médio" valor={brl(os.length?os.reduce((s,o)=>s+totalOrdem(o),0)/os.length:0)}/></div>}
-    {aba==='estoque'&&<><p className="text-sm text-muted-foreground">Posição atual do estoque · {hojeISO()}</p><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Stat rotulo="Unidades" valor={estoque.reduce((s,p)=>s+p.quantidade,0)}/><Stat rotulo="Valor total a venda" valor={brl(estoque.reduce((s,p)=>s+p.precoVenda*p.quantidade,0))}/>{verCusto&&<><Stat rotulo="Valor total a custo" valor={brl(estoque.reduce((s,p)=>s+p.custo*p.quantidade,0))}/><Stat rotulo="Margem potencial" valor={brl(estoque.reduce((s,p)=>s+(p.precoVenda-p.custo)*p.quantidade,0))}/></>}</div></>}
-    {aba==='compras'&&<div className="grid gap-3 sm:grid-cols-2"><Stat rotulo="Pedidos" valor={comprasPeriodo.length}/><Stat rotulo="Total · pedidos não cancelados" valor={brl(comprasPeriodo.filter(c=>c.status!=='Cancelada').reduce((s,c)=>s+c.total,0))}/></div>}
-    <section><h2 className="mb-3 font-bold">Detalhamento · {linhas.length} resultado(s)</h2>{carregando?<Vazio>Carregando…</Vazio>:linhas.length===0?<Vazio>Nenhum resultado para os filtros selecionados.</Vazio>:<Tabela cab={[...cab,'Detalhes']}>{linhas.slice((atual-1)*25,atual*25).map(l=><tr key={l.id}>{l.valores.map((v,i)=><td className={TD} key={i}>{v}</td>)}<td className={TD}><Button size="icon" variant="ghost" title="Ver todos os detalhes" aria-label={`Detalhes ${String(l.valores[aba==='estoque'?0:1])}`} onClick={()=>setDetalhe(l)}><Eye className="h-4 w-4"/></Button></td></tr>)}</Tabela>}<div className="mt-3 flex items-center justify-between gap-3"><p className="text-xs text-muted-foreground">Página {atual} de {nPaginas}</p><div className="flex gap-2"><Button size="sm" variant="outline" disabled={atual===1} onClick={()=>setPagina(atual-1)}>Anterior</Button><Button size="sm" variant="outline" disabled={atual===nPaginas} onClick={()=>setPagina(atual+1)}>Próxima</Button></div></div></section>
-    <Dialog open={Boolean(detalhe)} onOpenChange={v=>!v&&setDetalhe(null)}><DialogContent className="max-h-[85vh] overflow-y-auto"><DialogHeader><DialogTitle>Detalhes do registro</DialogTitle></DialogHeader><dl className="space-y-3">{detalhe?.detalhe.map(([k,v],i)=><div key={i} className="border-b pb-2"><dt className="text-xs text-muted-foreground">{k}</dt><dd className="break-words text-sm">{v}</dd></div>)}</dl></DialogContent></Dialog>
-  </div>;
+  );
+}
+function RelatorioConta({ conta }: { conta: Conta }) {
+  const { pode } = useAuth();
+  const verCusto = pode("ver-custo");
+  const empresa = conta === "empresa";
+  const { dados: lanc, carregando } = useColecao<Lancamento>(
+    empresa ? "lancamentos" : "lancamentosPessoais",
+  );
+  const { dados: ordens } = useColecao<OrdemServico>("ordens", empresa);
+  const { dados: vendas } = useColecao<Venda>("vendas", empresa);
+  const { dados: clientes } = useColecao<Cliente>("clientes", empresa);
+  const { dados: veiculos } = useColecao<Veiculo>("veiculos", empresa);
+  const { dados: produtos } = useColecao<Produto>("produtos", empresa);
+  const { dados: compras } = useColecao<Compra>("compras", empresa);
+  const [aba, setAba] = useState<Aba>("financeiro");
+  const [de, setDe] = useState(hojeISO().slice(0, 8) + "01");
+  const [ate, setAte] = useState(hojeISO());
+  const [busca, setBusca] = useState("");
+  const [tipo, setTipo] = useState("todos");
+  const [situacao, setSituacao] = useState("todas");
+  const [forma, setForma] = useState("todas");
+  const [categoria, setCategoria] = useState("todas");
+  const [origem, setOrigem] = useState("todas");
+  const [clienteId, setClienteId] = useState("todos");
+  const [tecnico, setTecnico] = useState("todos");
+  const [produtoId, setProdutoId] = useState("todos");
+  const [saldoEstoque, setSaldoEstoque] = useState("todos");
+  const [baseData, setBaseData] = useState("vencimento");
+  const [ordenar, setOrdenar] = useState("padrao");
+  const [pagina, setPagina] = useState(1);
+  const [detalhe, setDetalhe] = useState<Linha | null>(null);
+  const invalido = Boolean(de && ate && de > ate);
+  const dentro = (s: string) => !invalido && dentroPeriodo(s, de, ate);
+  const match = (s: string) => s.toLowerCase().includes(busca.trim().toLowerCase());
+  const nome = (id: string) => clientes.find((c) => c.id === id)?.nome ?? "Sem cliente";
+  const clienteLanc = (l: Lancamento) =>
+    l.clienteId || ordens.find((o) => o.id === l.referenciaId)?.clienteId || "";
+  const financeiros = lanc.filter(
+    (l) =>
+      (tipo === "todos" || l.tipo === tipo) &&
+      (situacao === "todas" ||
+        (situacao === "Parcial"
+          ? pago(l) > 0 && restante(l) > 0
+          : situacao === "nao-pagos"
+            ? restante(l) > 0
+            : statusFinanceiro(l, hojeISO()) === situacao)) &&
+      (categoria === "todas" || l.categoria === categoria) &&
+      (origem === "todas" || l.origem === origem) &&
+      (clienteId === "todos" || clienteLanc(l) === clienteId) &&
+      (tecnico === "todos" || ordens.find((o) => o.id === l.referenciaId)?.tecnico === tecnico) &&
+      match(`${l.descricao} ${l.observacao} ${nome(clienteLanc(l))}`),
+  );
+  const mov = movimentacao(financeiros, de, ate).filter(
+    (p) => forma === "todas" || p.formaPagamento === forma,
+  );
+  const selecionados = financeiros.filter(
+    (l) =>
+      (forma === "todas" || l.formaPagamento === forma) &&
+      (baseData === "vencimento"
+        ? dentro(l.vencimento)
+        : mov.some((p) => p.lancamento.id === l.id)),
+  );
+  const os = ordens.filter(
+    (o) =>
+      o.tipo === "os" &&
+      o.status !== "Cancelada" &&
+      dentro(o.emissao) &&
+      (situacao === "todas" || o.status === situacao) &&
+      (clienteId === "todos" || o.clienteId === clienteId) &&
+      (tecnico === "todos" || o.tecnico === tecnico) &&
+      (aba !== "os" ||
+        match(`${o.numero} ${nome(o.clienteId)} ${o.tecnico} ${o.servicoSolicitado}`)),
+  );
+  const vs = vendas.filter(
+    (v) =>
+      dentro(v.data) &&
+      (forma === "todas" || v.formaPagamento === forma) &&
+      (tecnico === "todos" || v.criadoPorNome === tecnico) &&
+      clienteId === "todos",
+  );
+  const itens = itensComerciais(origem === "pdv" ? [] : os, origem === "os" ? [] : vs).filter(
+    (i) =>
+      (produtoId === "todos" || i.produtoId === produtoId) &&
+      (tipo === "todos" || i.tipo === tipo) &&
+      (categoria === "todas" ||
+        produtos.find((p) => p.id === i.produtoId)?.categoria === categoria) &&
+      match(`${i.descricao} ${i.documento} ${i.clienteNome} ${nome(i.clienteId)}`),
+  );
+  const estoque = produtos.filter(
+    (p) =>
+      (produtoId === "todos" || p.id === produtoId) &&
+      (categoria === "todas" || p.categoria === categoria) &&
+      (saldoEstoque === "todos" ||
+        (saldoEstoque === "baixo" && p.quantidade <= p.estoqueMinimo) ||
+        (saldoEstoque === "zerado" && p.quantidade === 0) ||
+        (saldoEstoque === "positivo" && p.quantidade > 0)) &&
+      match(`${p.nome} ${p.codigoBarras} ${p.marca} ${p.localizacao}`),
+  );
+  const comprasPeriodo = compras.filter(
+    (c) =>
+      dentro(c.dataPedido) &&
+      (situacao === "todas" || c.status === situacao) &&
+      (forma === "todas" || c.formaPagamento === forma) &&
+      match(`${c.numero} ${c.fornecedorNome} ${c.notaFiscal}`),
+  );
+  const recebidos = mov
+    .filter((p) => p.lancamento.tipo === "receber")
+    .reduce((s, p) => s + p.valor, 0);
+  const pagos = mov.filter((p) => p.lancamento.tipo === "pagar").reduce((s, p) => s + p.valor, 0);
+  const receitaItens = itens.reduce((s, i) => s + i.receita, 0);
+  const custoItens = itens.reduce((s, i) => s + i.custo, 0);
+  let cab: string[] = [];
+  let linhas: Linha[] = [];
+  if (aba === "financeiro") {
+    cab = [
+      "Vencimento",
+      "Descrição",
+      "Cliente",
+      "Categoria",
+      "Tipo",
+      "Valor",
+      "Pago",
+      "Saldo",
+      "Situação",
+    ];
+    linhas = selecionados.map((l) => ({
+      id: l.id,
+      valores: [
+        l.vencimento,
+        l.descricao,
+        empresa ? nome(clienteLanc(l)) : "—",
+        l.categoria,
+        l.tipo,
+        brl(l.valor),
+        brl(pago(l)),
+        brl(restante(l)),
+        statusFinanceiro(l, hojeISO()),
+      ],
+      detalhe: [
+        ["Descrição", l.descricao],
+        ["Origem", l.origem],
+        ["Referência", l.referenciaId || "Sem vínculo"],
+        ["Observações", l.observacao || "—"],
+        ["Valor", brl(l.valor)],
+        ["Pago", brl(pago(l))],
+        ["Saldo", brl(restante(l))],
+        ["Cadastrado por", l.criadoPorNome ?? "—"],
+      ],
+    }));
+  }
+  if (aba === "caixa") {
+    cab = ["Pagamento", "Descrição", "Tipo", "Categoria", "Forma", "Valor", "Responsável"];
+    linhas = mov.map((p) => ({
+      id: p.id,
+      valores: [
+        p.data.slice(0, 10),
+        p.lancamento.descricao,
+        p.lancamento.tipo,
+        p.lancamento.categoria,
+        p.formaPagamento,
+        brl(p.valor),
+        p.usuarioNome,
+      ],
+      detalhe: [
+        ["Pagamento", p.data],
+        ["Lançamento", p.lancamento.descricao],
+        ["Valor", brl(p.valor)],
+        ["Forma", p.formaPagamento],
+        ["Responsável", p.usuarioNome],
+        ["Saldo atual do lançamento", brl(restante(p.lancamento))],
+      ],
+    }));
+  }
+  if (aba === "os") {
+    cab = ["Emissão", "OS", "Cliente", "Veículo", "Técnico", "Status", "Total"];
+    linhas = os.map((o) => ({
+      id: o.id,
+      valores: [
+        o.emissao.slice(0, 10),
+        o.numero,
+        nome(o.clienteId),
+        veiculos.find((v) => v.id === o.veiculoId)?.placa ?? "—",
+        o.tecnico || "—",
+        o.status,
+        brl(totalOrdem(o)),
+      ],
+      detalhe: [
+        ["OS", o.numero],
+        ["Cliente", nome(o.clienteId)],
+        ["Serviço solicitado", o.servicoSolicitado || "—"],
+        ["Status", o.status],
+        ["Total", brl(totalOrdem(o))],
+        ...o.itens.map(
+          (i) => [i.descricao, `${i.quantidade} × ${brl(i.valorUnitario)}`] as [string, string],
+        ),
+      ],
+    }));
+  }
+  if (aba === "itens") {
+    cab = [
+      "Data",
+      "Documento",
+      "Origem",
+      "Produto / Serviço",
+      "Qtd",
+      "Receita",
+      ...(verCusto ? ["Custo histórico", "Margem bruta"] : []),
+    ];
+    linhas = itens.map((i) => ({
+      id: i.id,
+      valores: [
+        i.data.slice(0, 10),
+        i.documento,
+        i.origem,
+        i.descricao,
+        i.quantidade,
+        brl(i.receita),
+        ...(verCusto ? [brl(i.custo), brl(i.receita - i.custo)] : []),
+      ],
+      detalhe: [
+        ["Descrição", i.descricao],
+        ["Documento", i.documento],
+        ["Cliente", i.clienteNome || nome(i.clienteId)],
+        ["Responsável", i.tecnico || "—"],
+        ["Quantidade", String(i.quantidade)],
+        ["Receita após descontos", brl(i.receita)],
+        ...(verCusto
+          ? ([
+              ["Custo histórico", brl(i.custo)],
+              ["Margem sobre venda", `${margemSobreVenda(i.receita, i.custo)?.toFixed(1) ?? "—"}%`],
+            ] as [string, string][])
+          : []),
+      ],
+    }));
+  }
+  if (aba === "clientes") {
+    cab = ["Cliente", "Documentos", "Total", "Ticket médio"];
+    const mapa = new Map<string, { nome: string; docs: Set<string>; valor: number }>();
+    for (const i of itens) {
+      const chave = i.clienteId || i.clienteNome || "balcao";
+      const a = mapa.get(chave) ?? {
+        nome: i.clienteNome || nome(i.clienteId),
+        docs: new Set<string>(),
+        valor: 0,
+      };
+      a.docs.add(`${i.origem}-${i.documento}`);
+      a.valor += i.receita;
+      mapa.set(chave, a);
+    }
+    linhas = [...mapa]
+      .sort((a, b) => b[1].valor - a[1].valor)
+      .map(([id, c]) => ({
+        id,
+        valores: [c.nome, c.docs.size, brl(c.valor), brl(c.valor / c.docs.size)],
+        detalhe: [
+          ["Cliente", c.nome],
+          ["Total", brl(c.valor)],
+          ...itens
+            .filter((i) => (i.clienteId || i.clienteNome || "balcao") === id)
+            .map((i) => [i.documento, `${i.descricao} · ${brl(i.receita)}`] as [string, string]),
+        ],
+      }));
+  }
+  if (aba === "estoque") {
+    cab = [
+      "Produto",
+      "Código",
+      "Categoria",
+      "Unidades",
+      "Mínimo",
+      "Total a venda",
+      ...(verCusto ? ["Total a custo", "Margem potencial"] : []),
+    ];
+    linhas = estoque.map((p) => ({
+      id: p.id,
+      valores: [
+        p.nome,
+        p.codigoBarras,
+        p.categoria,
+        p.quantidade,
+        p.estoqueMinimo,
+        brl(p.quantidade * p.precoVenda),
+        ...(verCusto
+          ? [brl(p.quantidade * p.custo), brl(p.quantidade * (p.precoVenda - p.custo))]
+          : []),
+      ],
+      detalhe: [
+        ["Produto", p.nome],
+        ["Marca", p.marca ?? "—"],
+        ["Localização", p.localizacao ?? "—"],
+        ["Quantidade", `${p.quantidade} ${p.unidade}`],
+        ["Preço de venda", brl(p.precoVenda)],
+        ...(verCusto
+          ? ([
+              ["Custo unitário", brl(p.custo)],
+              [
+                "Margem sobre venda",
+                `${margemSobreVenda(p.precoVenda, p.custo)?.toFixed(1) ?? "—"}%`,
+              ],
+            ] as [string, string][])
+          : []),
+      ],
+    }));
+  }
+  if (aba === "compras") {
+    cab = ["Data pedido", "Compra", "Fornecedor", "Situação", "Forma", "Total"];
+    linhas = comprasPeriodo.map((c) => ({
+      id: c.id,
+      valores: [
+        c.dataPedido.slice(0, 10),
+        c.numero,
+        c.fornecedorNome,
+        c.status,
+        c.formaPagamento,
+        brl(c.total),
+      ],
+      detalhe: [
+        ["Compra", c.numero],
+        ["Fornecedor", c.fornecedorNome],
+        ["Nota fiscal", c.notaFiscal || "—"],
+        ["Recebimento", c.dataRecebimento || "Pendente"],
+        ...c.itens.map(
+          (i) => [i.descricao, `${i.quantidade} × ${brl(i.custoUnitario)}`] as [string, string],
+        ),
+      ],
+    }));
+  }
+  const campoValor =
+    aba === "financeiro"
+      ? 5
+      : aba === "caixa"
+        ? 5
+        : aba === "os"
+          ? 6
+          : aba === "itens"
+            ? 5
+            : aba === "clientes"
+              ? 2
+              : aba === "estoque"
+                ? 5
+                : 5;
+  const dinheiro = (v: string | number | undefined) =>
+    Number(
+      String(v ?? "0")
+        .replace(/[^\d,.-]/g, "")
+        .replaceAll(".", "")
+        .replace(",", "."),
+    ) || 0;
+  if (ordenar === "valor")
+    linhas.sort((a, b) => dinheiro(b.valores[campoValor]) - dinheiro(a.valores[campoValor]));
+  else if (ordenar === "nome")
+    linhas.sort((a, b) =>
+      String(a.valores[aba === "estoque" ? 0 : 1]).localeCompare(
+        String(b.valores[aba === "estoque" ? 0 : 1]),
+      ),
+    );
+  else if (aba !== "estoque" && aba !== "clientes")
+    linhas.sort((a, b) => String(b.valores[0]).localeCompare(String(a.valores[0])));
+  const meses = new Map<string, { mes: string; recebido: number; pago: number }>();
+  for (const p of mov) {
+    const m = p.data.slice(0, 7);
+    const a = meses.get(m) ?? { mes: m, recebido: 0, pago: 0 };
+    if (p.lancamento.tipo === "receber") a.recebido += p.valor;
+    else a.pago += p.valor;
+    meses.set(m, a);
+  }
+  const grafico = [...meses.values()].sort((a, b) => a.mes.localeCompare(b.mes));
+  const tabs: [Aba, string][] = [
+    ["financeiro", "Contas"],
+    ["caixa", "Fluxo de caixa"],
+    ...(empresa
+      ? ([
+          ["os", "Ordens de serviço"],
+          ["itens", "Produtos e serviços"],
+          ["clientes", "Clientes"],
+          ["estoque", "Estoque atual"],
+          ["compras", "Compras"],
+        ] as [Aba, string][])
+      : []),
+  ];
+  function limpar() {
+    setBusca("");
+    setTipo("todos");
+    setSituacao("todas");
+    setForma("todas");
+    setCategoria("todas");
+    setOrigem("todas");
+    setClienteId("todos");
+    setTecnico("todos");
+    setProdutoId("todos");
+    setSaldoEstoque("todos");
+    setPagina(1);
+  }
+  function trocar(a: Aba) {
+    setAba(a);
+    limpar();
+    setOrdenar("padrao");
+  }
+  const select = (
+    label: string,
+    value: string,
+    change: (v: string) => void,
+    options: [string, string][],
+  ) => (
+    <Campo rotulo={label}>
+      <select
+        aria-label={label}
+        className={SEL}
+        value={value}
+        onChange={(e) => {
+          change(e.target.value);
+          setPagina(1);
+        }}
+      >
+        {options.map(([v, n]) => (
+          <option key={v} value={v}>
+            {n}
+          </option>
+        ))}
+      </select>
+    </Campo>
+  );
+  const categorias =
+    aba === "estoque" || aba === "itens" || aba === "clientes"
+      ? produtos.map((p) => p.categoria)
+      : lanc.map((l) => l.categoria);
+  const nPaginas = Math.max(1, Math.ceil(linhas.length / 25));
+  const atual = Math.min(pagina, nPaginas);
+  return (
+    <div className="space-y-5">
+      <div className="nao-imprimir">
+        <PageHeader
+          titulo={empresa ? "Relatórios · Empresa" : "Relatórios · Pessoal"}
+          acoes={
+            <>
+              <Button
+                variant="outline"
+                title="Exportar todos os resultados filtrados"
+                onClick={() =>
+                  exportarCSV(
+                    `relatorio-${conta}-${aba}-${de}-${ate}.csv`,
+                    cab,
+                    linhas.map((l) => l.valores),
+                  )
+                }
+              >
+                <Download className="mr-2 h-4 w-4" />
+                CSV
+              </Button>
+              <Button variant="outline" title="Imprimir relatório" onClick={() => window.print()}>
+                <Printer className="mr-2 h-4 w-4" />
+                Imprimir
+              </Button>
+            </>
+          }
+        />
+        <div
+          className="flex flex-wrap gap-1 border-b pb-3"
+          role="tablist"
+          aria-label="Tipo de relatório"
+        >
+          {tabs.map(([a, n]) => (
+            <Button
+              key={a}
+              role="tab"
+              aria-selected={a === aba}
+              variant={a === aba ? "default" : "ghost"}
+              size="sm"
+              onClick={() => trocar(a)}
+            >
+              {n}
+            </Button>
+          ))}
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {aba !== "estoque" && (
+            <>
+              <Campo rotulo="De">
+                <Input
+                  aria-label="De"
+                  type="date"
+                  value={de}
+                  onChange={(e) => {
+                    setDe(e.target.value);
+                    setPagina(1);
+                  }}
+                />
+              </Campo>
+              <Campo rotulo="Até">
+                <Input
+                  aria-label="Até"
+                  type="date"
+                  value={ate}
+                  onChange={(e) => {
+                    setAte(e.target.value);
+                    setPagina(1);
+                  }}
+                />
+              </Campo>
+            </>
+          )}
+          <Campo rotulo="Buscar">
+            <Input
+              aria-label="Buscar no relatório"
+              value={busca}
+              onChange={(e) => {
+                setBusca(e.target.value);
+                setPagina(1);
+              }}
+              placeholder="Nome, descrição ou documento"
+            />
+          </Campo>
+          {select("Ordenar", ordenar, setOrdenar, [
+            ["padrao", "Padrão"],
+            ["valor", "Maior valor"],
+            ["nome", "Nome / descrição"],
+          ])}
+          {(aba === "financeiro" || aba === "caixa") && (
+            <>
+              {select("Tipo", tipo, setTipo, [
+                ["todos", "Todos"],
+                ["receber", "A receber"],
+                ["pagar", "A pagar"],
+              ])}
+              {select("Situação", situacao, setSituacao, [
+                ["todas", "Todas"],
+                ["nao-pagos", "Não pagos"],
+                ["Em aberto", "Em aberto"],
+                ["Parcial", "Parcial"],
+                ["Vencido", "Vencido"],
+                ["Pago", "Pago"],
+              ])}
+              {select("Categoria", categoria, setCategoria, [
+                ["todas", "Todas"],
+                ...[...new Set(categorias)].sort().map((c) => [c, c] as [string, string]),
+              ])}
+              {empresa &&
+                select("Origem", origem, setOrigem, [
+                  ["todas", "Todas"],
+                  ["manual", "Manual"],
+                  ["os", "OS"],
+                  ["pdv", "PDV"],
+                  ["compra", "Compra"],
+                ])}
+              {aba === "financeiro" &&
+                select("Data de referência", baseData, setBaseData, [
+                  ["vencimento", "Vencimento"],
+                  ["pagamento", "Pagamento"],
+                ])}
+            </>
+          )}
+          {(aba === "financeiro" || aba === "caixa" || aba === "compras") &&
+            select("Forma de pagamento", forma, setForma, [
+              ["todas", "Todas"],
+              ...formasPagamento.map((f) => [f, f] as [string, string]),
+            ])}
+          {empresa &&
+            ["financeiro", "caixa", "os", "itens", "clientes"].includes(aba) &&
+            select("Cliente", clienteId, setClienteId, [
+              ["todos", "Todos"],
+              ...clientes.map((c) => [c.id, c.nome] as [string, string]),
+            ])}
+          {empresa &&
+            ["os", "itens", "clientes"].includes(aba) &&
+            select("Técnico / vendedor", tecnico, setTecnico, [
+              ["todos", "Todos"],
+              ...[
+                ...new Set(
+                  [
+                    ...ordens.map((o) => o.tecnico),
+                    ...vendas.map((v) => v.criadoPorNome ?? ""),
+                  ].filter(Boolean),
+                ),
+              ]
+                .sort()
+                .map((t) => [t, t] as [string, string]),
+            ])}
+          {aba === "os" &&
+            select("Status da OS", situacao, setSituacao, [
+              ["todas", "Todos"],
+              ...["Aberta", "Em execução", "Aguardando peça", "Pronta", "Entregue"].map(
+                (s) => [s, s] as [string, string],
+              ),
+            ])}
+          {aba === "compras" &&
+            select("Status da compra", situacao, setSituacao, [
+              ["todas", "Todos"],
+              ...["Pedido", "Recebida", "Cancelada"].map((s) => [s, s] as [string, string]),
+            ])}
+          {["itens", "clientes"].includes(aba) && (
+            <>
+              {select("Origem", origem, setOrigem, [
+                ["todas", "OS e PDV"],
+                ["os", "Somente OS"],
+                ["pdv", "Somente PDV"],
+              ])}
+              {select("Tipo de item", tipo, setTipo, [
+                ["todos", "Todos"],
+                ["produto", "Produtos"],
+                ["servico", "Serviços"],
+              ])}
+            </>
+          )}
+          {["estoque", "itens", "clientes"].includes(aba) && (
+            <>
+              {select("Categoria de produto", categoria, setCategoria, [
+                ["todas", "Todas"],
+                ...[...new Set(categorias)].sort().map((c) => [c, c] as [string, string]),
+              ])}
+              {select("Produto", produtoId, setProdutoId, [
+                ["todos", "Todos"],
+                ...produtos.map((p) => [p.id, p.nome] as [string, string]),
+              ])}
+            </>
+          )}
+          {aba === "estoque" &&
+            select("Saldo de estoque", saldoEstoque, setSaldoEstoque, [
+              ["todos", "Todos"],
+              ["baixo", "Abaixo / no mínimo"],
+              ["zerado", "Zerado"],
+              ["positivo", "Com saldo"],
+            ])}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {aba !== "estoque" && (
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setDe(hojeISO());
+                  setAte(hojeISO());
+                }}
+              >
+                Hoje
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setDe(hojeISO().slice(0, 8) + "01");
+                  setAte(hojeISO());
+                }}
+              >
+                Este mês
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setDe(hojeISO().slice(0, 4) + "-01-01");
+                  setAte(hojeISO());
+                }}
+              >
+                Este ano
+              </Button>
+            </>
+          )}
+          <Button size="sm" variant="ghost" onClick={limpar}>
+            <FilterX className="mr-1 h-4 w-4" />
+            Limpar filtros
+          </Button>
+        </div>
+        {invalido && aba !== "estoque" ? (
+          <p className="text-destructive" role="alert">
+            A data inicial não pode ser posterior à final.
+          </p>
+        ) : null}
+        {(aba === "financeiro" || aba === "caixa") && (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {aba === "caixa" ? (
+              <>
+                <Stat rotulo="Recebimentos no período" valor={brl(recebidos)} tom="ok" />
+                <Stat rotulo="Pagamentos no período" valor={brl(pagos)} tom="perigo" />
+                <Stat
+                  rotulo="Resultado de caixa"
+                  valor={brl(recebidos - pagos)}
+                  tom={recebidos >= pagos ? "ok" : "perigo"}
+                />
+                <Stat rotulo="Transações" valor={mov.length} />
+              </>
+            ) : (
+              <>
+                <Stat
+                  rotulo="Valor dos lançamentos"
+                  valor={brl(selecionados.reduce((s, l) => s + l.valor, 0))}
+                />
+                <Stat
+                  rotulo="Pago acumulado · seleção"
+                  valor={brl(selecionados.reduce((s, l) => s + pago(l), 0))}
+                />
+                <Stat
+                  rotulo="A receber · seleção"
+                  valor={brl(
+                    selecionados
+                      .filter((l) => l.tipo === "receber")
+                      .reduce((s, l) => s + restante(l), 0),
+                  )}
+                  tom="ok"
+                />
+                <Stat
+                  rotulo="A pagar · seleção"
+                  valor={brl(
+                    selecionados
+                      .filter((l) => l.tipo === "pagar")
+                      .reduce((s, l) => s + restante(l), 0),
+                  )}
+                  tom="alerta"
+                />
+              </>
+            )}
+          </div>
+        )}
+        {aba === "caixa" && grafico.length > 0 && (
+          <section>
+            <h2 className="mb-3 font-bold">Entradas e saídas por mês</h2>
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={grafico}>
+                  <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" />
+                  <XAxis dataKey="mes" stroke="var(--color-muted-foreground)" />
+                  <YAxis stroke="var(--color-muted-foreground)" />
+                  <Tooltip formatter={(v: number) => brl(v)} />
+                  <Legend />
+                  <Bar dataKey="recebido" name="Recebido" fill="var(--color-success)" />
+                  <Bar dataKey="pago" name="Pago" fill="var(--color-destructive)" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </section>
+        )}
+        {["itens", "clientes"].includes(aba) && (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Stat rotulo="Receita dos itens · após descontos" valor={brl(receitaItens)} />
+            <Stat rotulo="Quantidade" valor={itens.reduce((s, i) => s + i.quantidade, 0)} />
+            {verCusto && (
+              <>
+                <Stat rotulo="Custo histórico dos itens" valor={brl(custoItens)} />
+                <Stat
+                  rotulo="Margem bruta estimada"
+                  valor={brl(receitaItens - custoItens)}
+                  detalhe={`${margemSobreVenda(receitaItens, custoItens)?.toFixed(1) ?? "—"}% sobre venda`}
+                  tom="ok"
+                />
+              </>
+            )}
+          </div>
+        )}
+        {aba === "os" && (
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Stat rotulo="Ordens no período" valor={os.length} />
+            <Stat
+              rotulo="Total das OS · emissão"
+              valor={brl(os.reduce((s, o) => s + totalOrdem(o), 0))}
+            />
+            <Stat
+              rotulo="Ticket médio"
+              valor={brl(os.length ? os.reduce((s, o) => s + totalOrdem(o), 0) / os.length : 0)}
+            />
+          </div>
+        )}
+        {aba === "estoque" && (
+          <>
+            <p className="text-sm text-muted-foreground">Posição atual do estoque · {hojeISO()}</p>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <Stat rotulo="Unidades" valor={estoque.reduce((s, p) => s + p.quantidade, 0)} />
+              <Stat
+                rotulo="Valor total a venda"
+                valor={brl(estoque.reduce((s, p) => s + p.precoVenda * p.quantidade, 0))}
+              />
+              {verCusto && (
+                <>
+                  <Stat
+                    rotulo="Valor total a custo"
+                    valor={brl(estoque.reduce((s, p) => s + p.custo * p.quantidade, 0))}
+                  />
+                  <Stat
+                    rotulo="Margem potencial"
+                    valor={brl(
+                      estoque.reduce((s, p) => s + (p.precoVenda - p.custo) * p.quantidade, 0),
+                    )}
+                  />
+                </>
+              )}
+            </div>
+          </>
+        )}
+        {aba === "compras" && (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Stat rotulo="Pedidos" valor={comprasPeriodo.length} />
+            <Stat
+              rotulo="Total · pedidos não cancelados"
+              valor={brl(
+                comprasPeriodo
+                  .filter((c) => c.status !== "Cancelada")
+                  .reduce((s, c) => s + c.total, 0),
+              )}
+            />
+          </div>
+        )}
+        <section>
+          <h2 className="mb-3 font-bold">Detalhamento · {linhas.length} resultado(s)</h2>
+          {carregando ? (
+            <Vazio>Carregando…</Vazio>
+          ) : linhas.length === 0 ? (
+            <Vazio>Nenhum resultado para os filtros selecionados.</Vazio>
+          ) : (
+            <Tabela cab={[...cab, "Detalhes"]}>
+              {linhas.slice((atual - 1) * 25, atual * 25).map((l) => (
+                <tr key={l.id}>
+                  {l.valores.map((v, i) => (
+                    <td className={TD} key={i}>
+                      {v}
+                    </td>
+                  ))}
+                  <td className={TD}>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      title="Ver todos os detalhes"
+                      aria-label={`Detalhes ${String(l.valores[aba === "estoque" ? 0 : 1])}`}
+                      onClick={() => setDetalhe(l)}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </Tabela>
+          )}
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <p className="text-xs text-muted-foreground">
+              Página {atual} de {nPaginas}
+            </p>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={atual === 1}
+                onClick={() => setPagina(atual - 1)}
+              >
+                Anterior
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={atual === nPaginas}
+                onClick={() => setPagina(atual + 1)}
+              >
+                Próxima
+              </Button>
+            </div>
+          </div>
+        </section>
+      </div>
+      <section className="area-impressao relatorio-impressao hidden print:block">
+        <h1>Adriano Auto Som · Relatório {empresa ? "Empresa" : "Pessoal"}</h1>
+        <p>
+          {tabs.find(([a]) => a === aba)?.[1]} ·{" "}
+          {aba === "estoque"
+            ? `Posição atual: ${hojeISO()}`
+            : `${de || "Início"} a ${ate || "Hoje"}`}{" "}
+          · {linhas.length} resultados
+        </p>
+        <p>
+          Busca: {busca || "Todas"} · Tipo: {tipo} · Situação: {situacao} · Categoria: {categoria} ·
+          Forma: {forma} · Origem: {origem} · Cliente:{" "}
+          {clienteId === "todos" ? "Todos" : nome(clienteId)} · Responsável: {tecnico} · Produto:{" "}
+          {produtoId === "todos" ? "Todos" : produtos.find((p) => p.id === produtoId)?.nome} ·
+          Referência: {baseData}
+        </p>
+        <table>
+          <thead>
+            <tr>
+              {cab.map((c) => (
+                <th key={c}>{c}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {linhas.map((l) => (
+              <tr key={l.id}>
+                {l.valores.map((v, i) => (
+                  <td key={i}>{v}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+      <Dialog open={Boolean(detalhe)} onOpenChange={(v) => !v && setDetalhe(null)}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Detalhes do registro</DialogTitle>
+          </DialogHeader>
+          <dl className="space-y-3">
+            {detalhe?.detalhe.map(([k, v], i) => (
+              <div key={i} className="border-b pb-2">
+                <dt className="text-xs text-muted-foreground">{k}</dt>
+                <dd className="break-words text-sm">{v}</dd>
+              </div>
+            ))}
+          </dl>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
 }

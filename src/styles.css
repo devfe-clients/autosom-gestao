@@ -168,18 +168,63 @@
     color: var(--color-foreground);
     font-family: var(--font-sans);
   }
-  h1, h2, h3 {
+  h1,
+  h2,
+  h3 {
     font-family: var(--font-display);
   }
 }
 
 .vu-stripe {
-  background-image: repeating-linear-gradient(90deg, var(--color-primary) 0 6px, transparent 6px 9px);
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--color-primary) 0 6px,
+    transparent 6px 9px
+  );
 }
 
 @media print {
-  body * { visibility: hidden; }
-  .area-impressao, .area-impressao * { visibility: visible; }
-  .area-impressao { position: absolute; inset: 0; background: white; color: black; }
-  .nao-imprimir { display: none !important; }
+  body * {
+    visibility: hidden;
+  }
+  .area-impressao,
+  .area-impressao * {
+    visibility: visible;
+  }
+  .area-impressao {
+    position: absolute;
+    inset: 0;
+    background: white;
+    color: black;
+  }
+  .nao-imprimir {
+    display: none !important;
+  }
+}
+
+@media print {
+  .relatorio-impressao {
+    display: block;
+    padding: 12mm;
+    font-size: 10pt;
+  }
+  .relatorio-impressao table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .relatorio-impressao th,
+  .relatorio-impressao td {
+    padding: 4px;
+    text-align: left;
+    border-bottom: 1px solid currentColor;
+  }
+  .relatorio-impressao thead {
+    display: table-header-group;
+  }
+  .relatorio-impressao tr {
+    break-inside: avoid;
+  }
+  .relatorio-impressao p {
+    margin-block: 8px;
+  }
 }

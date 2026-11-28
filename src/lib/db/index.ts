@@ -16,7 +16,16 @@ import {
   veiculoSchema,
   type EventoAuditoria,
 } from "../schemas";
-import type { AcaoAuditoria, Autor, ColecaoNome, DBAdapter, Escrita, MovEstoque, Registro, Remocao } from "./types";
+import type {
+  AcaoAuditoria,
+  Autor,
+  ColecaoNome,
+  DBAdapter,
+  Escrita,
+  MovEstoque,
+  Registro,
+  Remocao,
+} from "./types";
 
 export const db: DBAdapter = firebaseConfigurado ? firebaseAdapter : localAdapter;
 export const modoBanco = db.nome;
@@ -97,7 +106,10 @@ export async function gravar(opts: {
       usuarioId: autor.uid,
       usuarioNome: autor.nome,
       data: agora,
-      detalhe: e.colecao === "lancamentosPessoais" ? "Lançamento pessoal atualizado (conteúdo privado)" : (e.detalhe ?? `${NOMES[e.colecao]} ${rotulo(final)}`).slice(0, 500),
+      detalhe:
+        e.colecao === "lancamentosPessoais"
+          ? "Lançamento pessoal atualizado (conteúdo privado)"
+          : (e.detalhe ?? `${NOMES[e.colecao]} ${rotulo(final)}`).slice(0, 500),
     });
     return { colecao: e.colecao, registro: { ...final, auditoriaId } };
   });
@@ -111,10 +123,20 @@ export async function gravar(opts: {
       usuarioId: autor.uid,
       usuarioNome: autor.nome,
       data: agora,
-      detalhe: rm.colecao === "lancamentosPessoais" ? "Lançamento pessoal excluído (conteúdo privado)" : (rm.detalhe ?? `${NOMES[rm.colecao]} excluído`).slice(0, 500),
+      detalhe:
+        rm.colecao === "lancamentosPessoais"
+          ? "Lançamento pessoal excluído (conteúdo privado)"
+          : (rm.detalhe ?? `${NOMES[rm.colecao]} excluído`).slice(0, 500),
     });
   }
-  await db.commit({ escritas, movimentos: opts.movimentos ?? [], remocoes, auditorias, autor, agora });
+  await db.commit({
+    escritas,
+    movimentos: opts.movimentos ?? [],
+    remocoes,
+    auditorias,
+    autor,
+    agora,
+  });
 }
 
 /** Registra um evento de auditoria isolado (ex.: login). */
@@ -127,7 +149,16 @@ export async function registrarEvento(autor: Autor, acao: AcaoAuditoria, detalhe
     autor,
     agora,
     auditorias: [
-      { id: novoId(), colecao: "sessao", registroId: autor.uid, acao, usuarioId: autor.uid, usuarioNome: autor.nome, data: agora, detalhe },
+      {
+        id: novoId(),
+        colecao: "sessao",
+        registroId: autor.uid,
+        acao,
+        usuarioId: autor.uid,
+        usuarioNome: autor.nome,
+        data: agora,
+        detalhe,
+      },
     ],
   });
 }

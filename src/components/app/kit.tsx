@@ -2,7 +2,15 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 
-export function PageHeader({ titulo, descricao, acoes }: { titulo: string; descricao?: string; acoes?: ReactNode }) {
+export function PageHeader({
+  titulo,
+  descricao,
+  acoes,
+}: {
+  titulo: string;
+  descricao?: string;
+  acoes?: ReactNode;
+}) {
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div>
@@ -14,8 +22,18 @@ export function PageHeader({ titulo, descricao, acoes }: { titulo: string; descr
   );
 }
 
-export function Stat({ rotulo, valor, detalhe, tom = "padrao", icone }: {
-  rotulo: string; valor: ReactNode; detalhe?: ReactNode; tom?: "padrao" | "ok" | "alerta" | "perigo"; icone?: ReactNode;
+export function Stat({
+  rotulo,
+  valor,
+  detalhe,
+  tom = "padrao",
+  icone,
+}: {
+  rotulo: string;
+  valor: ReactNode;
+  detalhe?: ReactNode;
+  tom?: "padrao" | "ok" | "alerta" | "perigo";
+  icone?: ReactNode;
 }) {
   return (
     <div className="relative overflow-hidden rounded-lg border bg-card p-4">
@@ -39,10 +57,22 @@ export function Stat({ rotulo, valor, detalhe, tom = "padrao", icone }: {
 }
 
 export function Vazio({ children }: { children: ReactNode }) {
-  return <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">{children}</div>;
+  return (
+    <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
+      {children}
+    </div>
+  );
 }
 
-export function Campo({ rotulo, children, className }: { rotulo: string; children: ReactNode; className?: string }) {
+export function Campo({
+  rotulo,
+  children,
+  className,
+}: {
+  rotulo: string;
+  children: ReactNode;
+  className?: string;
+}) {
   return (
     <div className={cn("space-y-1.5", className)}>
       <Label className="text-xs uppercase tracking-wider text-muted-foreground">{rotulo}</Label>
@@ -65,12 +95,18 @@ const TONS: Record<string, string> = {
   Pedido: "bg-warning/20 text-warning",
   Recebida: "bg-success/20 text-success",
   Pago: "bg-success/20 text-success",
+  Parcial: "bg-warning/20 text-warning",
   "Em aberto": "bg-warning/20 text-warning",
   Vencido: "bg-destructive/20 text-destructive",
 };
 export function StatusBadge({ status }: { status: string }) {
   return (
-    <span className={cn("inline-flex rounded px-2 py-0.5 text-xs font-semibold", TONS[status] ?? "bg-muted text-muted-foreground")}>
+    <span
+      className={cn(
+        "inline-flex rounded px-2 py-0.5 text-xs font-semibold",
+        TONS[status] ?? "bg-muted text-muted-foreground",
+      )}
+    >
       {status}
     </span>
   );
@@ -87,7 +123,13 @@ export function Tabela({ cab, children }: { cab: string[]; children: ReactNode }
     <div className="overflow-x-auto rounded-lg border">
       <table className="w-full text-sm">
         <thead className="bg-muted/50 text-left text-xs uppercase tracking-wider text-muted-foreground">
-          <tr>{cab.map((c) => <th key={c} className="px-3 py-2 font-semibold">{c}</th>)}</tr>
+          <tr>
+            {cab.map((c) => (
+              <th key={c} className="px-3 py-2 font-semibold">
+                {c}
+              </th>
+            ))}
+          </tr>
         </thead>
         <tbody className="divide-y">{children}</tbody>
       </table>

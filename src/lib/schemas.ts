@@ -54,7 +54,14 @@ const base = {
   atualizadoPorNome: z.string().optional(),
 };
 
-export const formasPagamento = ["Dinheiro", "PIX", "Débito", "Crédito", "Boleto", "Transferência"] as const;
+export const formasPagamento = [
+  "Dinheiro",
+  "PIX",
+  "Débito",
+  "Crédito",
+  "Boleto",
+  "Transferência",
+] as const;
 export type FormaPagamento = (typeof formasPagamento)[number];
 
 // ---------- Clientes / veículos ----------
@@ -76,7 +83,11 @@ export const veiculoSchema = z.object({
   placa: placaSchema,
   marca: z.string().trim().min(1, "Informe a marca").max(40),
   modelo: z.string().trim().min(1, "Informe o modelo").max(80),
-  ano: z.coerce.number().int().min(1950, "Ano inválido").max(new Date().getFullYear() + 1, "Ano inválido"),
+  ano: z.coerce
+    .number()
+    .int()
+    .min(1950, "Ano inválido")
+    .max(new Date().getFullYear() + 1, "Ano inválido"),
   cor: opc(z.string().trim().max(30)),
   observacoes: opc(z.string().trim().max(1000)),
 });
@@ -112,7 +123,10 @@ export const produtoSchema = z.object({
   unidade: z.enum(["UN", "PAR", "KIT", "M", "CX"]).default("UN"),
   custo: z.coerce.number().min(0, "Custo inválido").max(1_000_000),
   precoVenda: z.coerce.number().min(0, "Preço inválido").max(1_000_000),
-  quantidade: z.coerce.number().int("Quantidade deve ser inteira").min(0, "Estoque não pode ficar negativo"),
+  quantidade: z.coerce
+    .number()
+    .int("Quantidade deve ser inteira")
+    .min(0, "Estoque não pode ficar negativo"),
   estoqueMinimo: z.coerce.number().int().min(0).default(1),
   localizacao: opc(z.string().trim().max(40)),
   ativo: z.boolean().default(true),
@@ -179,13 +193,27 @@ export const checklistSchema = z.object({
   responsavel: z.string().default(""),
   dataHora: z.string().default(""),
   fotos: z
-    .array(z.string().refine((u) => u.startsWith("https://res.cloudinary.com/") || u.startsWith("data:image/"), "Foto com origem inválida"))
+    .array(
+      z
+        .string()
+        .refine(
+          (u) => u.startsWith("https://res.cloudinary.com/") || u.startsWith("data:image/"),
+          "Foto com origem inválida",
+        ),
+    )
     .max(6)
     .default([]),
 });
 export type Checklist = z.infer<typeof checklistSchema>;
 
-export const statusOS = ["Aberta", "Em execução", "Aguardando peça", "Pronta", "Entregue", "Cancelada"] as const;
+export const statusOS = [
+  "Aberta",
+  "Em execução",
+  "Aguardando peça",
+  "Pronta",
+  "Entregue",
+  "Cancelada",
+] as const;
 export const statusOrcamento = ["Pendente", "Aprovado", "Recusado", "Convertido"] as const;
 
 export const ordemSchema = z
@@ -240,8 +268,13 @@ export const vendaSchema = z
     clienteNome: z.string().max(120).default(""),
     data: z.string(),
   })
-  .refine((v) => v.desconto <= v.subtotal, { message: "Desconto maior que o subtotal", path: ["desconto"] })
-  .refine((v) => Math.abs(v.subtotal - v.desconto - v.total) < 0.01, { message: "Total inconsistente" })
+  .refine((v) => v.desconto <= v.subtotal, {
+    message: "Desconto maior que o subtotal",
+    path: ["desconto"],
+  })
+  .refine((v) => Math.abs(v.subtotal - v.desconto - v.total) < 0.01, {
+    message: "Total inconsistente",
+  })
   .refine((v) => v.formaPagamento !== "Dinheiro" || v.valorRecebido + 0.001 >= v.total, {
     message: "Valor recebido menor que o total",
     path: ["valorRecebido"],
@@ -290,7 +323,18 @@ export const lancamentoSchema = z
     valor: z.coerce.number().positive("Valor inválido").max(100_000_000),
     valorPago: z.number().min(0).optional(),
     dataUltimoPagamento: z.string().default(""),
-    pagamentos: z.array(z.object({ id: z.string().min(1), valor: z.number().positive(), data: z.string().min(10), formaPagamento: z.enum(formasPagamento), usuarioNome: z.string().min(1) })).max(100).default([]),
+    pagamentos: z
+      .array(
+        z.object({
+          id: z.string().min(1),
+          valor: z.number().positive(),
+          data: z.string().min(10),
+          formaPagamento: z.enum(formasPagamento),
+          usuarioNome: z.string().min(1),
+        }),
+      )
+      .max(100)
+      .default([]),
     clienteId: z.string().default(""),
     vencimento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Informe o vencimento"),
     pagoEm: z.string().default(""),
@@ -301,12 +345,28 @@ export const lancamentoSchema = z
     referenciaId: z.string().default(""),
     baixadoPor: z.string().default(""),
     origemLancamento: z.enum(["empresa", "pessoal"]).default("empresa"),
-  }).superRefine((l, ctx) => {
+  })
+  .superRefine((l, ctx) => {
     const totalPago = l.valorPago ?? (l.pagoEm ? l.valor : 0);
     const historico = Math.round(l.pagamentos.reduce((s, p) => s + p.valor, 0) * 100) / 100;
-    if (totalPago > l.valor) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Valor pago maior que o lançamento", path: ["valorPago"] });
-    if (historico > totalPago + 0.001) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Histórico de pagamentos inconsistente", path: ["pagamentos"] });
-    if (l.valorPago !== undefined && Boolean(l.pagoEm) !== (l.valorPago === l.valor)) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Data de quitação inconsistente", path: ["pagoEm"] });
+    if (totalPago > l.valor)
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Valor pago maior que o lançamento",
+        path: ["valorPago"],
+      });
+    if (historico > totalPago + 0.001)
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Histórico de pagamentos inconsistente",
+        path: ["pagamentos"],
+      });
+    if (l.valorPago !== undefined && Boolean(l.pagoEm) !== (l.valorPago === l.valor))
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Data de quitação inconsistente",
+        path: ["pagoEm"],
+      });
   });
 export type Lancamento = z.infer<typeof lancamentoSchema>;
 
